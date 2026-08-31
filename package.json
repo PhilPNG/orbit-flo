@@ -1,0 +1,49 @@
+{
+  "name": "project-command-center",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "capture:redesign": "node scripts/capture-orbitflo-redesign.mjs",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "e2e": "node tests/e2e/run-e2e.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.108.2",
+    "@tanstack/react-query": "^5.101.2",
+    "@xyflow/react": "^12.11.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.22.0",
+    "ogl": "^1.0.11",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "react-markdown": "^10.1.0",
+    "react-router-dom": "^7.18.0",
+    "remark-gfm": "^4.0.1",
+    "tabbable": "^6.5.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^26.1.1",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "autoprefixer": "^10.5.2",
+    "jsdom": "^29.1.1",
+    "playwright": "^1.61.1",
+    "postcss": "^8.5.16",
+    "supabase": "^2.113.0",
+    "tailwindcss": "^4.3.1",
+    "typescript": "~5.9.3",
+    "vite": "^7.2.7",
+    "vitest": "^4.1.9",
+    "webmcp-types": "^0.1.5"
+  }
+}

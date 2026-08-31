@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A newer push to the same branch cancels the older run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Test and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        # The suite is timing-sensitive under load; two workers keeps CI stable.
+        run: npx vitest run --maxWorkers=2
+
+      - name: Build
+        run: npm run build
+
+  guards:
+    name: Privilege guards
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # The stack must come up with NO migrations visible, because `start`
+      # applies whatever it finds — and this history cannot replay onto a
+      # database that lacks the hosted platform's default privileges. The
+      # migrations are moved back two steps below, once those defaults exist.
+      - name: Start the local database with no migrations applied
+        run: |
+          mv supabase/migrations "$RUNNER_TEMP/orbit-migrations"
+          mkdir -p supabase/migrations
+          npx supabase start -x studio,realtime,storage-api,imgproxy,mailpit,edge-runtime,logflare,vector,supavisor,postgres-meta
+
+      # Reproduce what the hosted platform does and the local stack does not:
+      # grant every newly created public table to the three API roles. Measured
+      # 2026-08-20 — a fresh table locally arrives with Dxtm only, no
+      # SELECT/INSERT/UPDATE/DELETE, while on hosted it arrives fully granted.
+      #
+      # This is not a convenience. Without it two things break: migration
+      # 202608200001 asserts privileges that only exist because of these
+      # defaults and aborts the replay, and — more quietly — an over-granted
+      # new table would be undetectable here, which would make this whole job
+      # green and worthless.
+      - name: Reproduce the platform default privileges
+        run: |
+          psql "$DB_URL" -v ON_ERROR_STOP=1             -c "alter default privileges for role postgres grant all on tables to anon, authenticated, service_role;"             -c "alter default privileges for role postgres grant execute on functions to anon, authenticated, service_role;"
+        env:
+          DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
+      # Applied with psql in filename order rather than `supabase db reset`,
+      # which recreates the database and would discard the defaults set above.
+      - name: Apply migrations
+        run: |
+          # rmdir rather than rm -rf: this directory is the empty one this job
+          # created above, and rmdir refuses if it is not empty. Deliberate —
+          # rm -rf here is exactly the line someone copies into a real worktree.
+          rmdir supabase/migrations
+          mv "$RUNNER_TEMP/orbit-migrations" supabase/migrations
+          for f in supabase/migrations/*.sql; do
+            echo "--- applying $(basename "$f")"
+            psql "$DB_URL" -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+        env:
+          DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+
+      # ON_ERROR_STOP is what turns the file's own `raise` into a failed build.
+      - name: Assert privileges
+        run: psql "$DB_URL" -v ON_ERROR_STOP=1 -f docs/verification/grants-assertions.sql
+        env:
+          DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres

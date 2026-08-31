@@ -1,0 +1,9 @@
+.superpowers/
+.worktrees/
+node_modules/
+dist/
+test-results/
+playwright-report/
+debug.log
+*.local
+supabase/.temp/

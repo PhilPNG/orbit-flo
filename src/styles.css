@@ -1,0 +1,1885 @@
+@import "tailwindcss";
+
+:root {
+  color: #f8fafc;
+  background: #020817;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color-scheme: dark;
+  --orbit-space: #020817;
+  --orbit-surface-quiet: rgba(6, 12, 30, 0.86);
+  --orbit-surface-raised: rgba(10, 20, 44, 0.94);
+  --orbit-surface-focus: rgba(15, 29, 56, 0.97);
+  --orbit-blue: #3b82f6;
+  --orbit-cyan: #22d3ee;
+  --orbit-soft-cyan: #67e8f9;
+  --orbit-violet: #7c3aed;
+  /* Atmosphere only. These colour the backdrop and never a control.
+     --orbit-nebula-teal sits closest to --orbit-cyan, which is the interaction
+     colour, so it is permitted only as diffuse low-opacity mass: never a border,
+     never a crisp edge. Cyan marks what you can touch partly through sharpness,
+     and a teal line would blur that signal. */
+  --orbit-nebula-violet: #7c3aed;
+  --orbit-nebula-magenta: #c026d3;
+  --orbit-nebula-teal: #0d9488;
+  --orbit-star-cool: #e0f2fe;
+  --orbit-star-warm: #fcd9a8;
+  /* Three layers matching React Bits' Electric Border glow stack - a tight
+     ring, a soft mid blur, a wide ambient wash - expressed as box-shadow so it
+     needs no elements and cannot collide with the ::before spotlight or the
+     ::after state border already on cards.
+
+     Violet, not cyan, and deliberately so: cyan means "you can touch this", and
+     this appears on roughly 58 surfaces. Violet is the token the design
+     language designates as ambient-only, which is exactly what a decorative
+     glow is. */
+  --orbit-glow:
+    0 0 0 1px rgba(124, 58, 237, 0.1),
+    0 0 14px rgba(124, 58, 237, 0.1),
+    0 0 40px rgba(124, 58, 237, 0.06);
+  --orbit-text: #f8fafc;
+  --orbit-body: #cbd5e1;
+  --orbit-muted: #8290a7;
+  --orbit-border: rgba(148, 163, 184, 0.14);
+  --orbit-border-strong: rgba(148, 163, 184, 0.24);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(124, 58, 237, 0.08), transparent 32rem),
+    var(--orbit-space);
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+button,
+a,
+input,
+textarea,
+select {
+  outline-color: var(--orbit-soft-cyan);
+}
+
+::selection {
+  background: rgba(34, 211, 238, 0.32);
+}
+
+@layer components {
+  .surface-quiet,
+  .surface-primary,
+  .orbit-panel {
+    border: 1px solid var(--orbit-border);
+    background: var(--orbit-surface-quiet);
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.025), 0 18px 50px rgba(2, 8, 23, 0.28), var(--orbit-glow);
+  }
+
+  .orbit-panel {
+    position: relative;
+  }
+
+  .mission-registry-row {
+    box-shadow: none;
+  }
+
+  .surface-raised {
+    border: 1px solid var(--orbit-border-strong);
+    background: var(--orbit-surface-raised);
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.04), 0 28px 72px rgba(2, 8, 23, 0.48), var(--orbit-glow);
+  }
+
+  .inbox-stack-edges {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .inbox-stack-edges::before,
+  .inbox-stack-edges::after {
+    content: "";
+    position: absolute;
+    height: 2.5rem;
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    border-bottom: 0;
+    border-radius: 0.75rem 0.75rem 0 0;
+  }
+
+  .inbox-stack-edges::before {
+    inset: 0.75rem 1.5rem auto;
+  }
+
+  .inbox-stack-edges::after {
+    inset: 1.25rem 2.5rem auto;
+    border-color: rgba(148, 163, 184, 0.07);
+  }
+
+  .surface-focus {
+    border: 1px solid rgba(103, 232, 249, 0.24);
+    background: var(--orbit-surface-focus);
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.05), 0 36px 100px rgba(2, 8, 23, 0.68), var(--orbit-glow);
+  }
+
+  .surface-whisper,
+  .orbit-panel-soft {
+    border: 1px solid rgba(148, 163, 184, 0.08);
+    background: rgba(6, 12, 30, 0.54);
+  }
+
+  .today-flight-target {
+    border-color: rgba(103, 232, 249, 0.2);
+    background: rgba(2, 8, 23, 0.62);
+    box-shadow:
+      inset 0 1px rgba(255, 255, 255, 0.025),
+      inset 0 8px 24px rgba(2, 8, 23, 0.34),
+      var(--orbit-glow);
+    padding: 0.75rem 1rem;
+  }
+
+  .today-flight-target .today-flight-empty {
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+    padding: 0.25rem;
+  }
+
+  .today-flight-target .today-flight-empty > div:first-child {
+    max-width: 8rem;
+    margin-bottom: 0.375rem;
+  }
+
+  .today-flight-target .today-flight-empty > p {
+    margin-top: 0.25rem;
+    line-height: 1.25rem;
+  }
+
+  .today-flight-target .today-flight-empty > p + div {
+    margin-top: 0.75rem;
+  }
+
+  .today-suggestion-list {
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    background: rgba(6, 12, 30, 0.48);
+  }
+
+  .today-suggestion-row {
+    min-height: 3.5rem;
+    border-top: 1px solid rgba(148, 163, 184, 0.1);
+    background: rgba(10, 20, 44, 0.38);
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.018), var(--orbit-glow);
+    transition:
+      border-color 160ms ease,
+      background 160ms ease;
+  }
+
+  .today-suggestion-row:first-child {
+    border-top: 0;
+  }
+
+  .today-suggestion-row:hover {
+    background: rgba(15, 29, 56, 0.5);
+  }
+
+  .today-capture-dock {
+    border-color: rgba(103, 232, 249, 0.16);
+    background: rgba(2, 8, 23, 0.68);
+    box-shadow:
+      inset 0 1px rgba(255, 255, 255, 0.025),
+      inset 0 8px 20px rgba(2, 8, 23, 0.32),
+      var(--orbit-glow);
+  }
+
+  .today-mission-log {
+    background: rgba(6, 12, 30, 0.4);
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.018), var(--orbit-glow);
+  }
+
+  .map-template-card {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    gap: 0.625rem;
+    border: 1px solid transparent;
+    border-radius: 0.5rem;
+    padding: 0.5rem;
+    text-align: left;
+    transition:
+      border-color 160ms ease,
+      background 160ms ease;
+  }
+
+  .map-template-card:hover {
+    border-color: rgba(103, 232, 249, 0.25);
+    background: rgba(15, 23, 42, 0.5);
+  }
+
+  .map-template-card:focus-visible {
+    outline: 2px solid #67e8f9;
+    outline-offset: 2px;
+  }
+
+  .map-template-card:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .orbit-scrollbar {
+    scrollbar-color: rgba(103, 232, 249, 0.38) transparent;
+    scrollbar-width: thin;
+  }
+
+  .orbit-scrollbar::-webkit-scrollbar {
+    width: 0.375rem;
+  }
+
+  .orbit-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .orbit-scrollbar::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(103, 232, 249, 0.38);
+  }
+
+  .work-item-card-modal {
+    overflow: hidden;
+    padding: 0 !important;
+  }
+
+  .work-item-card-modal > div:first-child {
+    padding: 1.25rem 1.5rem 0;
+  }
+
+  .work-item-card-modal > div:last-child {
+    overflow: hidden;
+  }
+
+  .work-item-progress {
+    height: 0.375rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.14);
+  }
+
+  .work-item-progress > span {
+    position: relative;
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: var(--orbit-blue);
+    transition: width 180ms ease;
+  }
+
+  .work-item-progress > span::after {
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: 0.375rem;
+    background: var(--orbit-cyan);
+    content: "";
+  }
+
+  .work-item-progress-complete > span {
+    background: #34d399;
+  }
+
+  .work-item-progress-complete > span::after {
+    display: none;
+  }
+
+  .work-item-detail-row {
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    border-radius: 0.625rem;
+    background: rgba(6, 12, 30, 0.46);
+    padding: 0.625rem 0.75rem;
+  }
+
+  .work-item-comment-avatar {
+    display: block;
+    width: 1.75rem;
+    height: 1.75rem;
+    flex: none;
+    margin-top: 0.125rem;
+    border: 1px solid rgba(103, 232, 249, 0.34);
+    border-radius: 999px;
+    background: #1d4ed8;
+    box-shadow: inset 0 0 0 0.375rem rgba(2, 8, 23, 0.58);
+  }
+
+  .orbit-button {
+    position: relative;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    background: #3b82f6;
+    color: white;
+    font-size: 0.875rem;
+    font-weight: 700;
+    padding: 0.625rem 0.875rem;
+    transition:
+      transform 160ms ease,
+      box-shadow 160ms ease,
+      opacity 160ms ease;
+    box-shadow: 0 12px 28px rgba(59, 130, 246, 0.18);
+  }
+
+  .orbit-button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 16px 42px rgba(59, 130, 246, 0.24);
+  }
+
+  .orbit-button:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .orbit-button-secondary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: rgba(15, 23, 42, 0.72);
+    color: #e5e7eb;
+    font-size: 0.875rem;
+    font-weight: 700;
+    padding: 0.625rem 0.875rem;
+    transition:
+      border-color 160ms ease,
+      background 160ms ease,
+      color 160ms ease;
+  }
+
+  .orbit-button-secondary:hover {
+    border-color: rgba(34, 211, 238, 0.58);
+    background: rgba(30, 41, 59, 0.86);
+    color: white;
+  }
+
+  .orbit-field-icon-button {
+    display: grid;
+    height: 2rem;
+    width: 2rem;
+    flex: none;
+    place-items: center;
+    border-radius: 0.375rem;
+    color: #94a3b8;
+    margin-block: -0.25rem;
+    margin-right: -0.375rem;
+    transition:
+      background 160ms ease,
+      color 160ms ease;
+  }
+
+  .orbit-field-icon-button:hover {
+    background: rgba(30, 41, 59, 0.72);
+    color: #e2e8f0;
+  }
+
+  .orbit-field-icon-button:focus-visible {
+    outline: 2px solid #67e8f9;
+    outline-offset: 2px;
+  }
+
+  .orbit-button-tertiary {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: #cbd5e1;
+    font-size: 0.875rem;
+    font-weight: 700;
+    padding: 0.625rem 0.875rem;
+    transition:
+      background 160ms ease,
+      color 160ms ease;
+  }
+
+  .orbit-button-tertiary:hover {
+    background: rgba(148, 163, 184, 0.08);
+    color: white;
+  }
+
+  .orbit-button-danger-quiet {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 1px solid rgba(251, 113, 133, 0.24);
+    border-radius: 0.5rem;
+    background: transparent;
+    color: #fda4af;
+    font-size: 0.875rem;
+    font-weight: 700;
+    padding: 0.625rem 0.875rem;
+    transition:
+      border-color 160ms ease,
+      background 160ms ease,
+      color 160ms ease;
+  }
+
+  .orbit-button-danger-quiet:hover {
+    border-color: rgba(251, 113, 133, 0.46);
+    background: rgba(190, 18, 60, 0.08);
+    color: #fecdd3;
+  }
+
+  .orbit-button-danger-quiet:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  .orbit-button:focus-visible,
+  .orbit-button-secondary:focus-visible,
+  .orbit-button-tertiary:focus-visible,
+  .orbit-button-danger-quiet:focus-visible,
+  .orbit-input:focus-visible {
+    outline: 2px solid #67e8f9;
+    outline-offset: 2px;
+  }
+
+  .settings-row {
+    display: flex;
+    cursor: pointer;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding-block: 1rem;
+  }
+
+  .settings-row:first-child {
+    padding-top: 0;
+  }
+
+  .settings-row:last-child {
+    padding-bottom: 0;
+  }
+
+  .orbit-switch {
+    width: 2.625rem;
+    height: 1.5rem;
+    flex: 0 0 2.625rem;
+    cursor: pointer;
+    appearance: none;
+    border: 1px solid rgba(148, 163, 184, 0.42);
+    border-radius: 999px;
+    background-color: rgba(15, 23, 42, 0.9);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Ccircle cx='9' cy='9' r='8' fill='%23cbd5e1'/%3E%3C/svg%3E");
+    background-position: left 2px center;
+    background-repeat: no-repeat;
+    background-size: 18px 18px;
+    transition:
+      border-color 160ms ease,
+      background-color 160ms ease,
+      background-position 160ms ease;
+  }
+
+  .orbit-switch:checked {
+    border-color: #22d3ee;
+    background-color: #2563eb;
+    background-position: right 2px center;
+  }
+
+  .orbit-switch:focus-visible {
+    outline: 2px solid #67e8f9;
+    outline-offset: 3px;
+  }
+
+  @media (forced-colors: active) {
+    .orbit-switch {
+      appearance: auto;
+      border-color: CanvasText;
+      background: Canvas;
+      accent-color: Highlight;
+    }
+  }
+
+  .brainstorm-filter-bar {
+    display: inline-flex;
+    width: fit-content;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.75rem;
+    background: rgba(6, 12, 30, 0.8);
+    padding: 0.25rem;
+  }
+
+  .brainstorm-filter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border: 1px solid transparent;
+    border-radius: 0.5rem;
+    background: transparent;
+    color: var(--orbit-muted);
+    font-size: 0.8125rem;
+    font-weight: 650;
+    padding: 0.45rem 0.65rem;
+    transition:
+      background 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease;
+  }
+
+  .brainstorm-filter:hover {
+    background: rgba(148, 163, 184, 0.06);
+    color: var(--orbit-body);
+  }
+
+  .brainstorm-filter-active {
+    border-color: rgba(34, 211, 238, 0.22);
+    background: rgba(34, 211, 238, 0.08);
+    color: #e0f2fe;
+  }
+
+  .brainstorm-filter-count {
+    min-width: 1.25rem;
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.08);
+    color: #94a3b8;
+    font-size: 0.6875rem;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.125rem;
+    padding: 0 0.35rem;
+    text-align: center;
+  }
+
+  .brainstorm-filter-active .brainstorm-filter-count {
+    background: rgba(34, 211, 238, 0.12);
+    color: var(--orbit-soft-cyan);
+  }
+
+  .brainstorm-filter:focus-visible {
+    outline: 2px solid var(--orbit-soft-cyan);
+    outline-offset: 2px;
+  }
+
+  .mission-label {
+    color: #7dd3fc;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    opacity: 0.8;
+  }
+
+  .orbit-input {
+    border-radius: 0.5rem;
+    border: 1px solid rgba(148, 163, 184, 0.24);
+    background: rgba(2, 8, 23, 0.66);
+    color: #f8fafc;
+    font-size: 0.875rem;
+    padding: 0.625rem 0.75rem;
+    outline: none;
+    transition:
+      border-color 160ms ease,
+      box-shadow 160ms ease,
+      background 160ms ease;
+  }
+
+  .orbit-input::placeholder {
+    color: #64748b;
+  }
+
+  .orbit-input:focus {
+    border-color: rgba(34, 211, 238, 0.78);
+    box-shadow: 0 0 0 3px rgba(34, 211, 238, 0.14);
+  }
+
+  .orbit-nav-link {
+    transition:
+      background 160ms ease,
+      color 160ms ease;
+  }
+
+  .orbit-nav-link:focus-visible {
+    outline: 2px solid rgba(103, 232, 249, 0.9);
+    outline-offset: 2px;
+  }
+
+  .orbit-nav-active::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    height: 1.25rem;
+    width: 2px;
+    border-radius: 999px;
+    background: #67e8f9;
+    transform: translateY(-50%);
+  }
+
+  .telemetry-chip {
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(8, 15, 34, 0.72);
+  }
+
+  .orbit-task-card {
+    box-shadow: 0 10px 30px rgba(2, 8, 23, 0.24), var(--orbit-glow);
+    transition:
+      transform 180ms ease,
+      border-color 180ms ease,
+      box-shadow 180ms ease;
+  }
+
+  .kanban-card {
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.025), var(--orbit-glow);
+    transition:
+      transform 180ms ease,
+      border-color 180ms ease,
+      box-shadow 180ms ease,
+      opacity 140ms ease;
+  }
+
+  .kanban-drag-source {
+    opacity: 0.28;
+    transform: rotate(3deg) scale(1.02);
+  }
+
+  .kanban-drop-target {
+    border-color: rgba(103, 232, 249, 0.62);
+  }
+
+  .kanban-drag-preview {
+    box-shadow: 0 18px 44px rgba(2, 8, 23, 0.52), var(--orbit-glow);
+  }
+}
+
+/* A streak of light crossing the viewport as a screen changes. An overlay above
+   both screens rather than a transition between them, which is what lets it
+   avoid the exit-animation machinery entirely. */
+.orbit-route-sweep {
+  background: linear-gradient(
+    100deg,
+    transparent 42%,
+    rgba(34, 211, 238, 0.14) 50%,
+    transparent 58%
+  );
+  inset: 0;
+  pointer-events: none;
+  position: fixed;
+  transform: translateX(-100%);
+  z-index: 40;
+}
+
+/* Items settle in one after another. The delay comes from --stagger-index,
+   which callers set from the render index via staggerDelayMs. */
+.orbit-stagger {
+  --stagger-index: 0;
+}
+
+/* Pinned to the viewport so the painted area never grows with the document,
+   and so the field always covers the full height of the page. */
+.orbit-starfield-root {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  contain: strict;
+}
+
+/* This removes cyan from the backdrop: the second layer used to be
+   rgba(103, 232, 249, 0.5), which is --orbit-cyan's soft variant — the
+   interaction colour. Cyan marks what you can touch and must not appear in
+   atmosphere, so the two layers now use the cool/warm star tokens instead,
+   with the warm layer kept a clear minority (it is the second, lower-opacity
+   gradient) so temperature variety does not tip into looking like confetti.
+   Fallback rgba values come first, exactly as .orbit-nebula does, since
+   color-mix() needs Chrome 111 / Safari 16.2 / Firefox 113. */
+.orbit-starfield {
+  background-image:
+    radial-gradient(circle, rgba(224, 242, 254, 0.72) 1px, transparent 1.6px),
+    radial-gradient(circle, rgba(252, 217, 168, 0.4) 1px, transparent 1.5px);
+  background-image:
+    radial-gradient(circle, color-mix(in srgb, var(--orbit-star-cool) 72%, transparent) 1px, transparent 1.6px),
+    radial-gradient(circle, color-mix(in srgb, var(--orbit-star-warm) 40%, transparent) 1px, transparent 1.5px);
+  background-position:
+    0 0,
+    34px 28px;
+}
+
+/* Layers bleed past the viewport so the drift transform never exposes an edge.
+   Drift animates transform (composited) rather than background-position, which
+   would repaint every one of these full-screen layers on every frame. */
+.orbit-star-layer {
+  position: absolute;
+  inset: -220px;
+}
+
+.satellite-loader-orbit::after {
+  content: "";
+  position: absolute;
+  top: -0.2rem;
+  left: 50%;
+  height: 0.42rem;
+  width: 0.42rem;
+  border-radius: 999px;
+  background: #67e8f9;
+  box-shadow: 0 0 12px rgba(103, 232, 249, 0.9);
+  transform: translateX(-50%);
+}
+
+.orbit-progress-satellite::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -0.15rem;
+  height: 0.55rem;
+  width: 1.35rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #67e8f9, #3b82f6);
+  box-shadow: 0 0 16px rgba(103, 232, 249, 0.86);
+  transform: translateX(-50%);
+}
+
+.auth-orbit-scene {
+  position: relative;
+  isolation: isolate;
+  aspect-ratio: 1;
+  width: min(100%, 28rem);
+  margin-inline: auto;
+  overflow: hidden;
+}
+
+/* The orb fills the space the ring diagram used to occupy. */
+.auth-orb-host {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.auth-orb-host canvas {
+  display: block;
+  margin: 0 auto;
+}
+
+/* Static stand-in for the WebGL orb when reduced motion is set, WebGL is
+   unavailable, or the GPU context is lost mid-session. Mirrors what the
+   deleted ring/core-art CSS gave those visitors before the orb replaced it -
+   a static sphere, not an empty host with four cards floating around
+   nothing. No animation, by design. */
+.auth-orb-fallback {
+  position: absolute;
+  inset: 14%;
+  border-radius: 9999px;
+  background: radial-gradient(
+    circle at 35% 30%,
+    rgba(196, 181, 253, 0.85) 0%,
+    rgba(124, 58, 237, 0.55) 42%,
+    rgba(37, 99, 235, 0.4) 68%,
+    rgba(15, 23, 42, 0) 78%
+  );
+}
+
+.auth-orbit-card {
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 0.65rem;
+  background: rgba(2, 8, 23, 0.74);
+  color: #e5f8ff;
+  font-size: 0.74rem;
+  font-weight: 800;
+  padding: 0.55rem 0.7rem;
+  box-shadow: 0 16px 34px rgba(2, 8, 23, 0.3), var(--orbit-glow);
+  backdrop-filter: blur(12px);
+}
+
+.auth-orbit-card-dot {
+  height: 0.55rem;
+  width: 0.55rem;
+  border-radius: 999px;
+}
+
+.auth-orbit-card-dot-cyan {
+  background: #67e8f9;
+  color: #67e8f9;
+}
+
+.auth-orbit-card-dot-blue {
+  background: #60a5fa;
+  color: #60a5fa;
+}
+
+.auth-orbit-card-dot-violet {
+  background: #a78bfa;
+  color: #a78bfa;
+}
+
+.auth-orbit-satellite-one {
+  left: 8%;
+  top: 23%;
+}
+
+.auth-orbit-satellite-two {
+  right: 5%;
+  top: 30%;
+}
+
+.auth-orbit-satellite-three {
+  bottom: 16%;
+  right: 12%;
+}
+
+.auth-orbit-satellite-four {
+  bottom: 22%;
+  left: 6%;
+}
+
+.daily-orbit-pulse {
+  position: relative;
+}
+
+.daily-orbit-pulse::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: 8px;
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  pointer-events: none;
+}
+
+.focus-orbit-timer {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  background:
+    radial-gradient(circle at 50% 50%, rgba(34, 211, 238, 0.16), transparent 46%),
+    conic-gradient(from 140deg, rgba(37, 99, 235, 0.5), rgba(34, 211, 238, 0.12), rgba(124, 58, 237, 0.5), rgba(37, 99, 235, 0.5));
+  box-shadow:
+    0 0 34px rgba(34, 211, 238, 0.12),
+    inset 0 0 34px rgba(2, 8, 23, 0.54),
+    var(--orbit-glow);
+}
+
+.focus-orbit-timer::before,
+.focus-orbit-timer::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.focus-orbit-timer::before {
+  inset: 0.45rem;
+  border: 1px solid rgba(103, 232, 249, 0.24);
+}
+
+.focus-orbit-timer::after {
+  left: 50%;
+  top: -0.1rem;
+  height: 0.55rem;
+  width: 1.5rem;
+  background: linear-gradient(90deg, #67e8f9, #7c3aed);
+  box-shadow: 0 0 16px rgba(103, 232, 249, 0.9);
+  transform: translateX(-50%);
+}
+
+.orbit-page-enter {
+  will-change: opacity, transform;
+}
+
+/* Used only by the route wrapper (LazyRoute in routes.tsx), which sits
+   around every routed screen and therefore around every `position: fixed`
+   descendant those screens render (e.g. the maps node inspector, the
+   project workspace error toast). Unlike .orbit-page-enter above, this
+   class deliberately omits `will-change: transform` and never leaves a
+   `transform` value behind once its animation ends (see the keyframe
+   below, applied without a fill mode) - either one is independently
+   enough to make this element a containing block for those fixed
+   descendants, anchoring them to the wrapper instead of the viewport. */
+.orbit-route-enter {
+  will-change: opacity;
+}
+
+.orbit-loading-shell,
+.orbit-hud-surface,
+.orbit-constellation-canvas {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+.orbit-loading-shell::before,
+.orbit-hud-surface::before,
+.orbit-constellation-canvas::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(circle at 18% 0%, rgba(34, 211, 238, 0.06), transparent 34%);
+}
+
+/* One tile size per layer so a translate of exactly that distance loops seamlessly. */
+.orbit-starfield-far {
+  background-size:
+    168px 168px,
+    168px 168px;
+}
+
+.orbit-starfield-mid {
+  background-size:
+    132px 132px,
+    132px 132px;
+}
+
+.orbit-starfield-near {
+  background-size:
+    104px 104px,
+    104px 104px;
+}
+
+/* A wide, soft gradient reads the same as the old blur(72px) without asking the
+   compositor to blur a full-screen layer on every paint. */
+/* Three masses rather than one: a violet primary high-right, a magenta
+   secondary low-left, and a teal counter-glow that keeps the two warm masses
+   from reading as a single purple wash. Opacities stay under 0.14 because
+   foreground surfaces must remain opaque enough that text never sits on
+   visible colour. */
+.orbit-nebula {
+  /* Fallback first. color-mix() is this stylesheet's only use of the function
+     and needs Chrome 111 / Safari 16.2 / Firefox 113. An unsupported browser
+     discards the whole declaration rather than one colour, so without this the
+     nebula would not degrade - it would disappear, leaving a flat black page.
+     These rgba values are the same three colours at the same three opacities. */
+  background:
+    radial-gradient(ellipse 70% 55% at 72% 12%, rgba(124, 58, 237, 0.13), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 18% 82%, rgba(192, 38, 211, 0.09), transparent 72%),
+    radial-gradient(ellipse 85% 60% at 8% 24%, rgba(13, 148, 136, 0.07), transparent 75%);
+  background:
+    radial-gradient(ellipse 70% 55% at 72% 12%, color-mix(in srgb, var(--orbit-nebula-violet) 13%, transparent), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 18% 82%, color-mix(in srgb, var(--orbit-nebula-magenta) 9%, transparent), transparent 72%),
+    radial-gradient(ellipse 85% 60% at 8% 24%, color-mix(in srgb, var(--orbit-nebula-teal) 7%, transparent), transparent 75%);
+}
+
+/* When the WebGL galaxy is live it draws its own stars, twinkle and flares.
+   The CSS layers would double them, so they are hidden — but the nebula and
+   grain stay, because the canvas renders transparent and they paint over it
+   (the canvas is the starfield root's first child, both of these come later,
+   and nothing sets z-index). That inversion is desirable: the nebula tints
+   the stars rather than sitting behind them, which is what makes the two
+   paths look like the same product rather than two different backgrounds. */
+.orbit-starfield-root--webgl .orbit-star-layer,
+.orbit-starfield-root--webgl .orbit-star-flare,
+.orbit-starfield-root--webgl .orbit-meteor {
+  display: none;
+}
+
+.orbit-galaxy-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.orbit-galaxy-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Sits above the galaxy (z-index 0) and below all content. Fixed, so scrolling
+   a long project does not drag the contours with it. `main` in app-shell.tsx
+   is `relative z-10`, which makes it a stacking context of its own - a
+   positive z-index here would resolve inside that context and paint over the
+   workspace content, not under it. -1 keeps the layer behind everything in
+   `main` while `main`'s own stacking context still floats the whole thing
+   above the galaxy. */
+.orbit-topography {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.orbit-grain {
+  opacity: 0.04;
+}
+
+.orbit-meteor {
+  position: absolute;
+  left: 0;
+  height: 2px;
+  width: 170px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.72) 62%,
+    rgba(165, 243, 252, 0.95) 100%
+  );
+  box-shadow: 0 0 10px rgba(103, 232, 249, 0.45);
+  opacity: 0;
+  transform: rotate(16deg) translate3d(-30vw, 0, 0);
+}
+
+.orbit-meteor-one {
+  top: 16%;
+}
+
+.orbit-meteor-two {
+  top: 42%;
+  width: 120px;
+}
+
+.orbit-meteor-three {
+  top: 68%;
+  width: 200px;
+}
+
+.orbit-star-flare {
+  position: absolute;
+  height: 3px;
+  width: 3px;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow:
+    0 0 8px 1px rgba(255, 255, 255, 0.8),
+    0 0 22px 2px rgba(103, 232, 249, 0.35);
+}
+
+.orbit-star-flare::before,
+.orbit-star-flare::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+}
+
+.orbit-star-flare::before {
+  height: 1px;
+  width: 26px;
+}
+
+.orbit-star-flare::after {
+  width: 1px;
+  height: 26px;
+  background: linear-gradient(180deg, transparent, rgba(255, 255, 255, 0.7), transparent);
+}
+
+.orbit-star-flare-small {
+  transform: scale(0.6);
+  opacity: 0.7;
+}
+
+.satellite-loader-trail {
+  border: 1px solid rgba(124, 58, 237, 0.28);
+  box-shadow: 0 0 22px rgba(34, 211, 238, 0.14);
+}
+
+.satellite-loader-pulse {
+  background: rgba(34, 211, 238, 0.1);
+  box-shadow: 0 0 28px rgba(34, 211, 238, 0.32);
+}
+
+.orbit-dock-target {
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.2), 0 0 26px rgba(34, 211, 238, 0.1);
+}
+
+.orbit-dock-pulse {
+  will-change: opacity, transform;
+}
+
+.orbit-signal-dock {
+  position: relative;
+  overflow: hidden;
+}
+
+.orbit-signal-dock::after,
+.orbit-launch-completion::after,
+.orbit-deadline-pulse::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.orbit-signal-dock::after {
+  inset: 0;
+  background: radial-gradient(circle at 16% 0%, rgba(34, 211, 238, 0.12), transparent 34%);
+}
+
+.orbit-launch-completion {
+  position: relative;
+  overflow: hidden;
+}
+
+.orbit-launch-completion::after {
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(52, 211, 153, 0.16), transparent);
+  opacity: 0;
+}
+
+.orbit-deadline-pulse {
+  position: relative;
+}
+
+.orbit-deadline-pulse::after {
+  inset: -1px;
+  border: 1px solid rgba(34, 211, 238, 0.32);
+  opacity: 0.56;
+}
+
+.orbit-deadline-pulse-danger::after {
+  border-color: rgba(251, 113, 133, 0.42);
+}
+
+.orbit-constellation-flow .react-flow__edge-path {
+  stroke: rgba(103, 232, 249, 0.45);
+  stroke-width: 1.25;
+  filter: drop-shadow(0 0 3px rgba(103, 232, 249, 0.35));
+}
+
+.orbit-constellation-canvas {
+  background:
+    radial-gradient(circle at 50% 42%, rgba(59, 130, 246, 0.045), transparent 44%),
+    var(--orbit-space);
+}
+
+.star-node {
+  position: relative;
+  min-height: 3rem;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.star-node-selected::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: -0.7rem;
+  top: 50%;
+  height: 2.7rem;
+  width: 2.7rem;
+  border: 1px solid rgba(103, 232, 249, 0.4);
+  border-radius: 999px;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 0.4rem rgba(34, 211, 238, 0.06),
+    0 0 2rem rgba(34, 211, 238, 0.32);
+  transform: translateY(-50%);
+}
+
+.star-glyph {
+  position: relative;
+  z-index: 1;
+  display: block;
+  flex-shrink: 0;
+}
+
+.star-dot {
+  height: 1.15rem;
+  width: 1.15rem;
+  border-radius: 999px;
+}
+
+.star-dot-cyan {
+  background: #67e8f9;
+  box-shadow: 0 0 16px rgba(103, 232, 249, 0.75);
+}
+
+.star-dot-blue {
+  background: #60a5fa;
+  box-shadow: 0 0 16px rgba(96, 165, 250, 0.75);
+}
+
+.star-dot-violet {
+  background: #a78bfa;
+  box-shadow: 0 0 16px rgba(167, 139, 250, 0.75);
+}
+
+.star-glyph-cyan {
+  --glyph-color: #67e8f9;
+  --glyph-glow: rgba(103, 232, 249, 0.7);
+}
+
+.star-glyph-blue {
+  --glyph-color: #60a5fa;
+  --glyph-glow: rgba(96, 165, 250, 0.7);
+}
+
+.star-glyph-violet {
+  --glyph-color: #a78bfa;
+  --glyph-glow: rgba(167, 139, 250, 0.7);
+}
+
+.star-glyph-planet {
+  height: 1.3rem;
+  width: 1.3rem;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, #a5f3fc, #0891b2 70%);
+  box-shadow: 0 0 16px var(--glyph-glow);
+}
+
+.star-glyph-planet::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: 0.55rem;
+  width: 1.9rem;
+  border: 1px solid rgba(165, 243, 252, 0.7);
+  border-radius: 999px;
+  transform: translate(-50%, -50%) rotate(-24deg);
+}
+
+.star-glyph-diamond {
+  height: 1rem;
+  width: 1rem;
+  background: var(--glyph-color);
+  box-shadow: 0 0 14px var(--glyph-glow);
+  transform: rotate(45deg);
+}
+
+.star-glyph-triangle {
+  height: 1.2rem;
+  width: 1.35rem;
+  background: var(--glyph-color);
+  clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  filter: drop-shadow(0 0 7px var(--glyph-glow));
+}
+
+.star-glyph-card {
+  height: 1.05rem;
+  width: 1.35rem;
+  border: 2px solid var(--glyph-color);
+  border-radius: 0.2rem;
+  box-shadow: 0 0 10px var(--glyph-glow);
+}
+
+.star-glyph-ring {
+  height: 1.15rem;
+  width: 1.15rem;
+  border: 2px solid var(--glyph-color);
+  border-radius: 999px;
+  box-shadow:
+    0 0 11px var(--glyph-glow),
+    inset 0 0 8px var(--glyph-glow);
+}
+
+.orbit-star-node-label {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  min-height: 2.25rem;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.42rem 0.72rem;
+  border: 1px solid var(--orbit-border);
+  border-radius: 999px;
+  background: var(--orbit-surface-quiet);
+  box-shadow: 0 8px 20px rgba(2, 8, 23, 0.3), var(--orbit-glow);
+  backdrop-filter: blur(10px);
+}
+
+.star-node-selected .orbit-star-node-label {
+  border-color: rgba(103, 232, 249, 0.46);
+  background: var(--orbit-surface-focus);
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.12),
+    0 0 24px rgba(34, 211, 238, 0.14);
+}
+
+.orbit-star-node-input {
+  border-bottom: 1px solid rgba(103, 232, 249, 0.5);
+}
+
+.star-planet-badge {
+  position: relative;
+  height: 0.7rem;
+  width: 0.7rem;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, #c4b5fd, #7c3aed 70%);
+}
+
+.star-planet-badge::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: 0.32rem;
+  width: 1.05rem;
+  border: 1px solid rgba(196, 181, 253, 0.7);
+  border-radius: 999px;
+  transform: translate(-50%, -50%) rotate(-24deg);
+}
+
+.orbit-constellation-canvas .react-flow__node {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.orbit-constellation-canvas .react-flow__handle {
+  height: 6px;
+  width: 6px;
+  border: none;
+  background: rgba(103, 232, 249, 0.6);
+}
+
+.orbit-constellation-canvas .react-flow__minimap {
+  border: 1px solid var(--orbit-border-strong);
+  border-radius: 0.5rem;
+  background: var(--orbit-surface-quiet);
+  box-shadow: 0 10px 26px rgba(2, 8, 23, 0.3), var(--orbit-glow);
+  backdrop-filter: blur(12px);
+}
+
+.orbit-constellation-canvas .react-flow__controls {
+  border: 1px solid var(--orbit-border-strong);
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: var(--orbit-surface-quiet);
+  box-shadow: 0 10px 26px rgba(2, 8, 23, 0.3), var(--orbit-glow);
+  backdrop-filter: blur(12px);
+}
+
+.orbit-constellation-canvas .react-flow__controls-button {
+  border-bottom: 1px solid var(--orbit-border);
+  background: var(--orbit-surface-quiet);
+  color: var(--orbit-body);
+  fill: var(--orbit-body);
+}
+
+.orbit-constellation-canvas .react-flow__controls-button:hover {
+  background: var(--orbit-surface-focus);
+}
+
+.orbit-map-node {
+  box-shadow: none;
+}
+
+.orbit-map-node-selected {
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.24), 0 0 34px rgba(34, 211, 238, 0.18);
+}
+
+.orbit-map-edge-sequence .react-flow__edge-path {
+  stroke-dasharray: 5 5;
+}
+
+.orbit-focus-active {
+  box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.24), 0 0 44px rgba(34, 211, 238, 0.12);
+}
+
+/* A travelling arc of the interaction colour, drawn in the element's own
+   border box via a masked conic gradient so it needs no extra DOM.
+   The angle is a registered property because unregistered custom properties
+   do not interpolate. Where @property is unsupported (Firefox < 128) the
+   declaration is dropped entirely, so --orbit-border-angle is guaranteed-
+   invalid rather than falling back to the 0deg initial-value - the first
+   cycle can render differently (the conic-gradient's `from` argument is
+   invalid until the keyframe target applies) before it settles into sitting
+   still once the angle stops changing. Not a clean "static arc" from frame
+   one, but a harmless one. */
+@property --orbit-border-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.orbit-state-border {
+  position: relative;
+}
+
+.orbit-state-border::after {
+  border-radius: inherit;
+  content: "";
+  inset: -1px;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  /* Invisible until a state asks for it. Without this every card on the board
+     would carry a static cyan arc at rest - the forty-cards problem arriving
+     by the back door, which is the exact thing this design exists to avoid. */
+  opacity: 0;
+  padding: 1px;
+  pointer-events: none;
+  position: absolute;
+  transition: opacity 180ms ease-out;
+  background: conic-gradient(
+    from var(--orbit-border-angle),
+    transparent 0deg,
+    var(--orbit-cyan) 38deg,
+    transparent 116deg
+  );
+}
+
+/* The two states that reveal the arc. The dragged card is not one of them -
+   that element already fades to opacity: 0.28 via kanban-drag-source (see
+   below), and a parent's opacity applies to its whole subtree including
+   ::after, so an arc there would render at ~28% and be nearly invisible on
+   top of being redundant with the existing ghost treatment. The column the
+   card is about to land in used to get this arc too; that state is now the
+   electric border overlay (see src/components/electric-border.tsx and
+   kanban-board.tsx) instead. */
+.orbit-state-border--once::after,
+.orbit-state-border:focus-visible::after {
+  opacity: 1;
+}
+
+/* Focus is a standing condition, not a transient one - an element can sit
+   focused for a minute, and this design language's governing rule is that
+   motion marks what is happening or what just happened, never a standing
+   condition (the same reason the active nav item doesn't animate). So the
+   focus arc is static: revealed above, but never looped below. It
+   supplements the native focus ring rather than replacing it - do not add
+   `outline: none` here. Where @property is unsupported the conic-gradient
+   is invalid and the arc silently fails to render, and stripping the native
+   ring on top of that would leave no focus indicator at all. */
+
+/* A highlight that follows the pointer inside a card. The coordinates are set
+   by one delegated listener per container - see kanban-board.tsx - rather than
+   a listener per card. Defaults put it off-card so a card that has never been
+   hovered shows nothing. */
+.orbit-spotlight {
+  --spot-x: -100%;
+  --spot-y: -100%;
+  position: relative;
+}
+
+.orbit-spotlight::before {
+  background: radial-gradient(
+    18rem circle at var(--spot-x) var(--spot-y),
+    color-mix(in srgb, var(--orbit-cyan) 7%, transparent),
+    transparent 60%
+  );
+  border-radius: inherit;
+  content: "";
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  transition: opacity 220ms ease-out;
+}
+
+.orbit-spotlight:hover::before {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .orbit-panel:hover {
+    transition: border-color 180ms ease;
+    border-color: rgba(148, 163, 184, 0.28);
+  }
+
+  .orbit-starfield-far {
+    animation: orbit-stars-drift-far 420s linear infinite;
+    will-change: transform;
+  }
+
+  .orbit-starfield-mid {
+    animation: orbit-stars-drift-mid 280s linear infinite reverse;
+    will-change: transform;
+  }
+
+  .orbit-starfield-near {
+    animation: orbit-stars-drift-near 160s linear infinite;
+    will-change: transform;
+  }
+
+  .orbit-meteor-one {
+    animation: orbit-meteor 19s linear 6s infinite;
+  }
+
+  .orbit-meteor-two {
+    animation: orbit-meteor 27s linear 14s infinite;
+  }
+
+  .orbit-meteor-three {
+    animation: orbit-meteor 23s linear 31s infinite;
+  }
+
+  .satellite-loader-orbit {
+    animation: orbit-loader 1.8s linear infinite;
+  }
+
+  .orbit-progress-satellite {
+    animation: orbit-loader 7s linear infinite;
+  }
+
+  .orbit-ring-slow {
+    animation: orbit-loader 22s linear infinite;
+  }
+
+  .orbit-ring-reverse {
+    animation: orbit-loader-reverse 30s linear infinite;
+  }
+
+  .orbiting-satellite {
+    animation: orbit-loader 12s linear infinite;
+  }
+
+  .orbit-float-card {
+    animation: orbit-float 5s ease-in-out infinite;
+  }
+
+  .orbit-task-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(34, 211, 238, 0.38);
+    box-shadow: 0 18px 40px rgba(2, 8, 23, 0.38), 0 0 28px rgba(34, 211, 238, 0.08), var(--orbit-glow);
+  }
+
+  .kanban-card:hover {
+    border-color: rgba(103, 232, 249, 0.28);
+    box-shadow: inset 0 1px rgba(255, 255, 255, 0.04), var(--orbit-glow);
+  }
+
+
+  .auth-orbit-card {
+    animation: orbit-float 24s ease-in-out infinite;
+  }
+
+  .auth-orbit-satellite-two {
+    animation-delay: 700ms;
+  }
+
+  .auth-orbit-satellite-three {
+    animation-delay: 1400ms;
+  }
+
+  .auth-orbit-satellite-four {
+    animation-delay: 2100ms;
+  }
+
+  .daily-capture-dock {
+    animation: daily-capture-dock 220ms ease-out;
+  }
+
+  .daily-completion-flare {
+    animation: daily-completion-flare 900ms ease-out;
+  }
+
+  .focus-orbit-timer::after {
+    animation: orbit-loader 9s linear infinite;
+    transform-origin: 50% calc(5rem + 0.1rem);
+  }
+
+  .orbit-page-enter {
+    animation: orbit-page-enter 420ms ease-out both;
+  }
+
+  /* No fill mode: once the animation ends, the element reverts to this
+     class's own declarations (no transform property at all), so no
+     containing block lingers after the settle finishes. */
+  .orbit-route-enter {
+    animation: orbit-page-enter 420ms ease-out;
+  }
+
+  .orbit-state-border--once::after {
+    animation: orbit-border-travel 1.2s ease-out 1;
+  }
+
+  .orbit-dock-pulse {
+    animation: orbit-dock-pulse 260ms ease-out both;
+  }
+
+  .satellite-loader-trail {
+    animation: orbit-loader-reverse 2.6s linear infinite;
+  }
+
+  .satellite-loader-pulse {
+    animation: orbit-loader-pulse 1600ms ease-in-out infinite;
+  }
+
+  .orbit-launch-completion::after {
+    animation: orbit-completion-sweep 900ms ease-out;
+  }
+
+  .orbit-focus-active {
+    animation: orbit-focus-breathe 2400ms ease-in-out infinite;
+  }
+
+  .orbit-route-sweep--playing {
+    animation: orbit-route-sweep 320ms ease-out;
+  }
+
+  .orbit-stagger {
+    /* backwards (not both): applies the first keyframe during the staggered
+       delay so cards don't flash fully visible before animating in, but
+       does not retain the final keyframe's transform after the animation
+       ends -- that retained transform used to permanently outrank the
+       .orbit-task-card:hover lift in the cascade. */
+    animation: orbit-page-enter 320ms ease-out backwards;
+    animation-delay: calc(var(--stagger-index) * 1ms);
+  }
+
+  @keyframes daily-capture-dock {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes daily-completion-flare {
+    0% {
+      opacity: 0;
+      transform: translateY(8px) scale(0.98);
+      box-shadow: 0 0 0 rgba(52, 211, 153, 0);
+    }
+    40% {
+      opacity: 1;
+      transform: translateY(0) scale(1.01);
+      box-shadow: 0 0 34px rgba(52, 211, 153, 0.2);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      box-shadow: 0 0 0 rgba(52, 211, 153, 0);
+    }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes orbit-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(0.45rem);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes orbit-route-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes orbit-border-travel {
+  to {
+    --orbit-border-angle: 360deg;
+  }
+}
+
+@keyframes orbit-dock-pulse {
+  from {
+    opacity: 0.74;
+    transform: translateY(0.35rem) scale(0.99);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes orbit-loader-pulse {
+  0%,
+  100% {
+    opacity: 0.34;
+    transform: scale(0.78);
+  }
+
+  50% {
+    opacity: 0.82;
+    transform: scale(1.14);
+  }
+}
+
+@keyframes orbit-completion-sweep {
+  0% {
+    opacity: 0;
+    transform: translateX(-80%);
+  }
+
+  35% {
+    opacity: 0.9;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translateX(80%);
+  }
+}
+
+@keyframes orbit-focus-breathe {
+  0%,
+  100% {
+    box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.22), 0 0 34px rgba(34, 211, 238, 0.1);
+  }
+
+  50% {
+    box-shadow: 0 0 0 1px rgba(103, 232, 249, 0.32), 0 0 58px rgba(34, 211, 238, 0.16);
+  }
+}
+
+@keyframes orbit-loader {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes orbit-loader-reverse {
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+/* Each layer travels exactly one tile so the loop is seamless. */
+@keyframes orbit-stars-drift-far {
+  to {
+    transform: translate3d(-168px, -168px, 0);
+  }
+}
+
+@keyframes orbit-stars-drift-mid {
+  to {
+    transform: translate3d(-132px, -132px, 0);
+  }
+}
+
+@keyframes orbit-stars-drift-near {
+  to {
+    transform: translate3d(-104px, -104px, 0);
+  }
+}
+
+/* Visible for roughly a tenth of the cycle, so meteors stay occasional. */
+@keyframes orbit-meteor {
+  0% {
+    opacity: 0;
+    transform: rotate(16deg) translate3d(-30vw, 0, 0);
+  }
+
+  3% {
+    opacity: 0.85;
+  }
+
+  9% {
+    opacity: 0.85;
+  }
+
+  12% {
+    opacity: 0;
+    transform: rotate(16deg) translate3d(125vw, 0, 0);
+  }
+
+  100% {
+    opacity: 0;
+    transform: rotate(16deg) translate3d(125vw, 0, 0);
+  }
+}
+
+@keyframes orbit-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+
+  50% {
+    transform: translate3d(0, -0.55rem, 0);
+  }
+}
+
+/* Markdown rendered from note bodies. Scoped rather than global so it cannot
+   leak into the rest of the app's typography. */
+.orbit-prose > * + * {
+  margin-top: 0.75rem;
+}
+
+.orbit-prose h1,
+.orbit-prose h2,
+.orbit-prose h3 {
+  color: rgb(226 232 240);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.orbit-prose h1 { font-size: 1.05rem; }
+.orbit-prose h2 { font-size: 0.975rem; }
+.orbit-prose h3 { font-size: 0.9rem; }
+
+.orbit-prose p { white-space: pre-wrap; }
+
+.orbit-prose ul,
+.orbit-prose ol {
+  padding-left: 1.15rem;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.orbit-prose ul { list-style: disc; }
+.orbit-prose ol { list-style: decimal; }
+
+.orbit-prose code {
+  border-radius: 0.25rem;
+  background: rgb(148 163 184 / 0.12);
+  padding: 0.05rem 0.3rem;
+  font-size: 0.85em;
+}
+
+.orbit-prose pre {
+  overflow-x: auto;
+  border-radius: 0.5rem;
+  background: rgb(2 8 23 / 0.6);
+  padding: 0.75rem;
+}
+
+.orbit-prose pre code {
+  background: none;
+  padding: 0;
+}
+
+.orbit-prose blockquote {
+  border-left: 2px solid rgb(148 163 184 / 0.3);
+  padding-left: 0.75rem;
+  color: rgb(148 163 184);
+}
+
+/* Wide tables scroll inside the note rather than stretching the card. */
+.orbit-prose table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+}
+
+.orbit-prose th,
+.orbit-prose td {
+  border: 1px solid rgb(148 163 184 / 0.2);
+  padding: 0.3rem 0.5rem;
+  text-align: left;
+}
