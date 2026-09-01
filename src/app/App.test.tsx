@@ -52,6 +52,7 @@ vi.mock("./route-loaders", () => ({
   loadDailyMissionControlPage: () => Promise.resolve({ default: () => <div>Daily Mission Control page</div> }),
   loadDashboardPage: () => Promise.resolve({ default: () => <div>Dashboard page</div> }),
   loadInboxPage: () => Promise.resolve({ default: () => <div>Inbox page</div> }),
+  loadLandingPage: () => Promise.resolve({ default: () => <div>Landing page</div> }),
   loadMapsPage: () => Promise.resolve({ default: () => <h1>Visual planning workspace</h1> }),
   loadMilestonePage: () => Promise.resolve({ default: () => <div>Milestone page</div> }),
   loadNotesPage: () => Promise.resolve({ default: () => <div>Notes page</div> }),

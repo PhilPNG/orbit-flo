@@ -1,86 +1,61 @@
 # Orbit Flo
 
-A React, TypeScript, Vite, and Supabase workspace for managing personal software projects from idea through execution.
+**A deep-space project workspace you share with your agent.**
 
-The app includes Orbit Flo branding, Supabase auth, a mission-control dashboard, project workspaces, Kanban work items, notes, weekly reviews, settings, unit tests, e2e smoke coverage, and Vercel deployment configuration.
+[![CI](https://github.com/PhilPNG/orbit-flo/actions/workflows/ci.yml/badge.svg)](https://github.com/PhilPNG/orbit-flo/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-38bdf8.svg)](LICENSE)
+[![WebMCP](https://img.shields.io/badge/WebMCP-7%20tools-7c3aed.svg)](#webmcp-an-agent-can-work-this-app)
 
-## Development
+Orbit Flo takes personal software projects from idea to done — kanban boards,
+daily flight plans, milestones, linked notes, and an inbox for stray thoughts —
+rendered as a live WebGL galaxy you work inside. And through
+[WebMCP](https://github.com/webmachinelearning/webmcp), a browser-hosted agent
+can operate the same workspace through your own signed-in session, its work
+landing on your board as it talks.
 
-Copy `.env.example` to `.env.local` and fill in:
+![Mission workspace kanban board](docs/media/board.png)
 
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_PUBLISHABLE_KEY`
+## A tour
 
-Run the app:
+### Mission control
 
-```powershell
-npm install
-npm run dev
-```
+Cross-project health, priority work, upcoming milestones, and recent decisions
+on one dashboard. The numbers tick up as they load; the constellation tracks
+missions that have reached orbit.
 
-Verify locally:
+![Dashboard](docs/media/dashboard.png)
 
-```powershell
-npm test
-npm run build
-npm run e2e
-```
+### Today's flight plan
 
-`npm run e2e` requires the Supabase environment variables above; placeholder values are enough for the unauthenticated smoke test.
+Each day gets a plan: a handful of items pulled from your boards, one marked
+primary. Completing one fires a launch streak. The agent reads and completes
+the same plan through `get_flight_plan` and `complete_plan_item`.
 
-## Supabase
+![Flight plan](docs/media/flight-plan.png)
 
-The initial schema lives in `supabase/migrations/202606280001_initial_project_command_center.sql`.
+### Missions and boards
 
-Onboarding is RPC-only: create the first workspace by calling `create_personal_workspace` with `supabase.rpc(...)`, not by issuing separate workspace and membership inserts.
+Projects are missions; their boards use orbital stages — Docked, Ready to
+Launch, Launching, In Orbit. Task descriptions support markdown and `orbit:`
+links to other tasks, rendered in the editor and stripped to plain text on
+cards. Drag a card and the target column crackles with an electric border.
 
-Raw Supabase-generated types should be written to a separate base file, for example `src/lib/supabase/generated.types.ts`.
-Use `npx supabase gen types typescript --local --schema public | Out-File -Encoding utf8 src/lib/supabase/generated.types.ts`.
-Preserve or reapply the grant-aware, narrowed app-facing `src/lib/supabase/database.types.ts`; do not replace it directly with raw generated types unless a narrowing layer is added.
+### The inbox
 
-Before applying the migration to a live project:
+Half-formed thoughts get captured — by keyboard from anywhere in the app, or
+by the agent via `capture_thought` — and triaged into tasks later.
 
-1. Review the SQL in the migration.
-2. Apply it in a Supabase branch or local Supabase database.
-3. Run Supabase security and performance advisors.
-4. Verify that RLS blocks access across workspaces with two test users.
+![Inbox](docs/media/inbox.png)
 
-## Vercel Deployment
+### The front door
 
-This app is intended to deploy on Vercel as a Vite React project.
-
-Required Vercel environment variables:
-
-- `VITE_SUPABASE_URL`
-- `VITE_SUPABASE_PUBLISHABLE_KEY`
-
-Configure both variables in Vercel for Development, Preview, and Production. Use separate Supabase projects or branches for Preview and Production if you want preview deployments isolated from production data.
-
-Recommended workflow:
-
-1. Connect the Git repository to Vercel.
-2. Set the framework preset to Vite.
-3. Use `npm run build` as the build command.
-4. Use `dist` as the output directory.
-5. Add the Supabase Auth redirect URLs in the Supabase dashboard:
-   - Local: `http://localhost:5173/auth/callback`
-   - Preview: `https://<preview-domain>/auth/callback`
-   - Production: `https://<production-domain>/auth/callback`
-
-Local Vercel verification:
-
-```powershell
-npm install -g vercel
-vercel pull --yes
-vercel build
-```
+![Sign in](docs/media/auth.png)
 
 ## WebMCP: an agent can work this app
 
 Orbit Flo registers seven tools with the browser's WebMCP surface
-(`document.modelContext`), so a browser-hosted agent can operate the app
-through your own signed-in session — and you watch its work land on your
-board live.
+(`document.modelContext`), so an agent-hosting browser can operate the app in
+your session — and you watch its work land on your board live.
 
 | Tool | What it does |
 | --- | --- |
@@ -92,33 +67,86 @@ board live.
 | `capture_thought` | Drop a thought into the inbox |
 | `complete_plan_item` | Complete a flight-plan item (with the launch animation) |
 
-Three design points worth knowing:
+Three design decisions worth knowing:
 
 - **Row-level security is the boundary, not the tool layer.** The agent uses
   the same authenticated Supabase client as your mouse. What it can touch is
-  decided by the database's policies and grants, which are asserted in CI on
-  every pull request (`docs/verification/grants-assertions.sql`).
+  decided by the database's policies and grants — which are machine-verified
+  in CI on every pull request (`docs/verification/grants-assertions.sql`).
 - **Nothing destructive is exposed.** No deletes, no member management, no
   role changes — and a test pins the tool list, so adding an eighth tool is a
-  failing build rather than quiet scope creep.
+  failing build rather than quiet scope creep. Agent input is validated before
+  any write.
 - **Everything is feature-detected.** In a browser without WebMCP the app
   registers nothing and behaves exactly as before. Registration is scoped by
   an `AbortController`, so switching workspaces re-registers the tools against
   the workspace on screen.
 
-To try it, use a browser with WebMCP enabled (for example Chrome with the
-WebMCP flag) and ask its agent to "list my projects" or "add a task to the
-launch project" while the app is open. The registration code lives in
-`src/features/agent/`.
+To try it, open the app in a browser with WebMCP enabled and ask its agent to
+"list my projects" or "add a task to the launch project". The integration
+lives in `src/features/agent/`.
 
-### Demo account
+## Architecture notes
 
-A seeded demo account exists for reviewers; its credentials are published in
-the Devpost submission text rather than here. To seed or reset it yourself
-against your own Supabase project:
+- **React 19 + TypeScript + Vite + Tailwind v4**, with Supabase for auth,
+  Postgres, and row-level security. TanStack Query owns server state.
+- **The privilege model is asserted, not assumed.** A CI job replays all
+  migrations onto a fresh local Supabase stack and runs ten catalog assertions
+  — `anon` holds nothing, protected columns are unwritable, every content
+  column *is* writable — failing the build on drift. A larger two-account
+  harness (`docs/verification/rls-assertions.sql`) verifies the RLS
+  boundaries themselves.
+- **The visuals are vendored, not depended on.** The galaxy, orb, contour
+  background, and electric border derive from
+  [React Bits](https://reactbits.dev) (MIT, see `LICENSES/`), each hardened
+  with reduced-motion guards, frame caps, visibility pauses, and WebGL
+  feature detection. `prefers-reduced-motion` disables every animation,
+  canvas included.
+- **Motion follows one rule:** it marks what is happening or what just
+  happened — never a standing condition. One travelling border at a time,
+  glow without loops at rest.
+
+## Getting started
 
 ```bash
-node scripts/seed-demo.mjs
+npm install
+cp .env.example .env.local   # fill in your Supabase URL + publishable key
+npm run dev
 ```
 
-It rebuilds the demo user and workspace from scratch on every run.
+Create the schema by applying `supabase/migrations/` to your Supabase project
+(`npx supabase db push`). Onboarding is RPC-only: the first workspace comes
+from the `create_workspace` RPC, not manual inserts.
+
+### Verify
+
+```bash
+npm test          # unit + component suite
+npm run build     # typecheck + production build
+npm run e2e       # Playwright; needs real Supabase env, otherwise skips
+```
+
+### Demo data
+
+`node scripts/seed-demo.mjs` builds (or resets) a demo account with a
+lived-in workspace — the screenshots above are captured from it by
+`node scripts/capture-readme.mjs`.
+
+### Types
+
+Generate raw Supabase types into `src/lib/supabase/generated.types.ts`
+(`npx supabase gen types typescript --local --schema public`), and keep the
+narrowed, grant-aware `src/lib/supabase/database.types.ts` as the app-facing
+layer rather than replacing it.
+
+## Deployment
+
+Deployed on Vercel: framework preset **Vite**, build `npm run build`, output
+`dist`. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_PUBLISHABLE_KEY` for each
+environment, and add the auth redirect URLs
+(`https://<domain>/auth/callback`) in the Supabase dashboard.
+
+## License
+
+[MIT](LICENSE). Vendored visual components carry their upstream MIT notices in
+[`LICENSES/`](LICENSES/).

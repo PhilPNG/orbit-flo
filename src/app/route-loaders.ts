@@ -10,6 +10,9 @@ export const loadDailyMissionControlPage = () =>
 export const loadInboxPage = () =>
   import("../features/inbox/inbox-page").then((module) => ({ default: module.InboxPage }));
 
+export const loadLandingPage = () =>
+  import("../features/landing/landing-page").then((module) => ({ default: module.LandingPage }));
+
 export const loadMapsPage = () =>
   import("../features/maps/maps-page").then((module) => ({ default: module.MapsPage }));
 

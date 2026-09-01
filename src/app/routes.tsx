@@ -9,6 +9,7 @@ import { RequireAuth } from "../features/auth/require-auth";
 import { InvitationPage } from "../features/invitations/invitation-page";
 import { WorkspaceGate } from "../features/workspaces/workspace-gate";
 import { WorkspaceRedirect } from "../features/workspaces/workspace-redirect";
+import { HomeRoute } from "./home-route";
 import { DelayedFallback, RouteSettle } from "./route-transition";
 import {
   loadCalendarPage,
@@ -101,7 +102,7 @@ export function AppRoutes() {
             element={<LazyRoute><VisualReviewRoute /></LazyRoute>}
           />
         ) : null}
-        <Route element={<ResolveWorkspace />} path="/" />
+        <Route element={<HomeRoute />} path="/" />
         <Route element={<ResolveWorkspace />} path="/dashboard" />
         <Route element={<ResolveWorkspace />} path="/projects" />
         <Route element={<ResolveWorkspace />} path="/projects/:projectId" />
