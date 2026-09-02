@@ -28,7 +28,7 @@ describe("AgentPage", () => {
     expect(screen.getByRole("heading", { name: "Your agent works here too." })).toBeVisible();
   });
 
-  it("pins exactly the ten real tool names, sorted - drift here means this page fell out of sync with agent-tools.ts", () => {
+  it("pins exactly the thirteen real tool names, sorted - drift here means this page fell out of sync with agent-tools.ts", () => {
     const { container } = renderAgent();
 
     const names = Array.from(container.querySelectorAll("tbody tr td:first-child")).map(
@@ -39,10 +39,13 @@ describe("AgentPage", () => {
       "add_to_flight_plan",
       "capture_thought",
       "complete_plan_item",
+      "create_milestone",
+      "create_note",
       "create_task",
       "file_capture_as_task",
       "get_flight_plan",
       "list_inbox",
+      "list_notes",
       "list_projects",
       "move_task",
       "search_workspace",
@@ -53,7 +56,7 @@ describe("AgentPage", () => {
     const { container } = renderAgent();
 
     const descriptions = container.querySelectorAll("tbody tr td:nth-child(2)");
-    expect(descriptions).toHaveLength(10);
+    expect(descriptions).toHaveLength(13);
     for (const cell of descriptions) {
       expect(cell.textContent?.length).toBeGreaterThan(0);
     }

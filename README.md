@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/PhilPNG/orbit-flo/actions/workflows/ci.yml/badge.svg)](https://github.com/PhilPNG/orbit-flo/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-38bdf8.svg)](LICENSE)
-[![WebMCP](https://img.shields.io/badge/WebMCP-10%20tools-7c3aed.svg)](#webmcp-an-agent-can-work-this-app)
+[![WebMCP](https://img.shields.io/badge/WebMCP-13%20tools-7c3aed.svg)](#webmcp-an-agent-can-work-this-app)
 
 Orbit Flo takes personal software projects from idea to done — kanban boards,
 daily flight plans, milestones, linked notes, and an inbox for stray thoughts —
@@ -53,7 +53,7 @@ by the agent via `capture_thought` — and triaged into tasks later.
 
 ## WebMCP: an agent can work this app
 
-Orbit Flo registers ten tools with the browser's WebMCP surface
+Orbit Flo registers thirteen tools with the browser's WebMCP surface
 (`document.modelContext`), so an agent-hosting browser can operate the app in
 your session — and you watch its work land on your board live.
 
@@ -69,6 +69,9 @@ your session — and you watch its work land on your board live.
 | `list_inbox` | Read unprocessed inbox captures |
 | `file_capture_as_task` | Turn a capture into a task on a board |
 | `add_to_flight_plan` | Put a task on today's plan |
+| `list_notes` | List the workspace's notes |
+| `create_note` | Write a note (ideas, decisions, risks…) |
+| `create_milestone` | Add a milestone to a roadmap |
 
 Three design decisions worth knowing:
 
@@ -77,7 +80,7 @@ Three design decisions worth knowing:
   decided by the database's policies and grants — which are machine-verified
   in CI on every pull request (`docs/verification/grants-assertions.sql`).
 - **Nothing destructive is exposed.** No deletes, no member management, no
-  role changes — and a test pins the tool list, so adding an eleventh tool is a
+  role changes — and a test pins the tool list, so adding a fourteenth tool is a
   failing build rather than quiet scope creep. Agent input is validated before
   any write.
 - **Everything is feature-detected.** In a browser without WebMCP the app

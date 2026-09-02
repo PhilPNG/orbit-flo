@@ -14,7 +14,7 @@
  */
 import type { QueryClient } from "@tanstack/react-query";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database, WorkItemStatus, CaptureType } from "../../lib/supabase/database.types";
+import type { Database, WorkItemStatus, CaptureType, NoteType } from "../../lib/supabase/database.types";
 import { formatPlanDate } from "../daily/daily-plan.utils";
 import {
   addDailyPlanItem,
@@ -24,6 +24,8 @@ import {
   getOrCreateDailyPlan,
 } from "../daily/daily-plan.queries";
 import { listInboxCaptures, updateCapture } from "../inbox/captures.queries";
+import { createNote, listNotes } from "../notes/notes.queries";
+import { createMilestone } from "../projects/milestones.queries";
 import { listProjects } from "../projects/projects.queries";
 import { searchWorkspace } from "../search/search.queries";
 import { createWorkItem, updateWorkItemStatus, workItemStatuses } from "../work-items/work-items.queries";
@@ -337,6 +339,88 @@ export function buildAgentTools(context: AgentToolContext): AgentTool[] {
         const item = await completeDailyPlanItem(client, { id: String(input.id), workspaceId });
         await invalidate(["daily-mission-control"]);
         return text(`Completed plan item ${item.id}.`);
+      }),
+    },
+    {
+      name: "list_notes",
+      description:
+        "List the workspace's notes, newest first - ideas, questions, decisions, risks, references. Pass projectId to scope to one project.",
+      inputSchema: {
+        type: "object",
+        properties: { projectId: { type: "string", description: "Optional project id, from list_projects" } },
+        required: [],
+      },
+      annotations: { readOnlyHint: true },
+      execute: guarded(async (input) => {
+        const notes = await listNotes(client, workspaceId, input.projectId ? String(input.projectId) : undefined);
+        if (notes.length === 0) return text("No notes yet.");
+        return text(
+          JSON.stringify(
+            notes.slice(0, 20).map((note) => ({ id: note.id, type: note.note_type, title: note.title })),
+          ),
+        );
+      }),
+    },
+    {
+      name: "create_note",
+      description:
+        "Write a note into the workspace. Type is one of: idea, question, decision, risk, reference. Decisions surface on the dashboard.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          title: { type: "string", description: "Short note title" },
+          type: { type: "string", enum: ["idea", "question", "decision", "risk", "reference"], description: "Kind of note; default idea" },
+          body: { type: "string", description: "Optional body; supports markdown and orbit: links" },
+          projectId: { type: "string", description: "Optional project to attach it to" },
+        },
+        required: ["title"],
+      },
+      execute: guarded(async (input) => {
+        const title = requireText(input.title);
+        if (!title) return text("A note needs a non-empty string title.");
+        const requested = input.type ? String(input.type) : "idea";
+        const noteTypes: readonly NoteType[] = ["idea", "question", "decision", "risk", "reference"];
+        const noteType = (noteTypes as readonly string[]).includes(requested) ? (requested as NoteType) : "idea";
+        const note = await createNote(client, {
+          workspaceId,
+          projectId: input.projectId ? String(input.projectId) : undefined,
+          userId,
+          noteType,
+          title,
+          body: input.body ? String(input.body) : undefined,
+          tags: [],
+        });
+        await invalidate(["notes"], ["daily-mission-control"]);
+        return text(`Noted "${note.title}" as ${noteType}.`);
+      }),
+    },
+    {
+      name: "create_milestone",
+      description:
+        "Add a milestone to a project's roadmap. Requires a projectId from list_projects; targetDate is optional YYYY-MM-DD.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          projectId: { type: "string", description: "Project id, from list_projects" },
+          title: { type: "string", description: "Milestone title" },
+          description: { type: "string", description: "Optional description" },
+          targetDate: { type: "string", description: "Optional target date, YYYY-MM-DD" },
+        },
+        required: ["projectId", "title"],
+      },
+      execute: guarded(async (input) => {
+        const title = requireText(input.title);
+        if (!title) return text("A milestone needs a non-empty string title.");
+        const milestone = await createMilestone(client, {
+          workspaceId,
+          projectId: String(input.projectId),
+          userId,
+          title,
+          description: input.description ? String(input.description) : undefined,
+          targetDate: input.targetDate ? String(input.targetDate) : undefined,
+        });
+        await invalidate(["milestones"], ["daily-mission-control"]);
+        return text(`Milestone "${milestone.title}" added to the roadmap.`);
       }),
     },
   ];

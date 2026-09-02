@@ -2,6 +2,13 @@ import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildAgentTools } from "./agent-tools";
 
+vi.mock("../notes/notes.queries", () => ({
+  listNotes: vi.fn().mockResolvedValue([{ id: "n1", note_type: "decision", title: "Launch on a Tuesday" }]),
+  createNote: vi.fn().mockResolvedValue({ id: "n2", title: "Widget idea", note_type: "idea" }),
+}));
+vi.mock("../projects/milestones.queries", () => ({
+  createMilestone: vi.fn().mockResolvedValue({ id: "m1", title: "Content freeze" }),
+}));
 vi.mock("../projects/projects.queries", () => ({
   listProjects: vi.fn().mockResolvedValue([{ id: "p1", name: "Orbit", status: "active" }]),
 }));
@@ -51,10 +58,13 @@ describe("buildAgentTools", () => {
       "add_to_flight_plan",
       "capture_thought",
       "complete_plan_item",
+      "create_milestone",
+      "create_note",
       "create_task",
       "file_capture_as_task",
       "get_flight_plan",
       "list_inbox",
+      "list_notes",
       "list_projects",
       "move_task",
       "search_workspace",
@@ -74,7 +84,7 @@ describe("buildAgentTools", () => {
       .map((tool) => tool.name)
       .sort();
 
-    expect(readOnly).toEqual(["get_flight_plan", "list_inbox", "list_projects", "search_workspace"]);
+    expect(readOnly).toEqual(["get_flight_plan", "list_inbox", "list_notes", "list_projects", "search_workspace"]);
   });
 
   it("create_task calls the domain function with the context's workspace and user", async () => {

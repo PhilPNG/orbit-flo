@@ -16,7 +16,7 @@ const REPO_URL = "https://github.com/PhilPNG/orbit-flo";
 const ABOUT_TEXT = [
   "Orbit Flo is mission control for software projects - boards, daily flight",
   "plans, milestones and linked notes inside a live galaxy. It also speaks",
-  "WebMCP: sign in and ten workspace tools appear, letting an agent-hosting",
+  "WebMCP: sign in and thirteen workspace tools appear, letting an agent-hosting",
   "browser plan the day, file tasks, triage the inbox, and move work across",
   "the board in your own session.",
   "",

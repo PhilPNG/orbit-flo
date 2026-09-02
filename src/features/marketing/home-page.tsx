@@ -98,7 +98,7 @@ export function HomePage() {
           Your agent works here too.
         </h2>
         <p className="mt-4 max-w-3xl text-slate-300">
-          Orbit Flo registers ten tools with the browser&apos;s WebMCP surface. An
+          Orbit Flo registers thirteen tools with the browser&apos;s WebMCP surface. An
           agent-hosting browser can plan your day, file tasks, and triage your inbox —
           in your session, on your screen, with its work landing on your board live.
         </p>

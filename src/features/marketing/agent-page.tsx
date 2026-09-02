@@ -37,6 +37,16 @@ const TOOLS: ToolRow[] = [
     readOnly: false,
   },
   {
+    name: "create_milestone",
+    description: "Add a milestone to a project's roadmap.",
+    readOnly: false,
+  },
+  {
+    name: "create_note",
+    description: "Write a note - ideas, questions, decisions, risks, references.",
+    readOnly: false,
+  },
+  {
     name: "create_task",
     description: "Create a task in a project; it appears on the kanban board immediately.",
     readOnly: false,
@@ -54,6 +64,11 @@ const TOOLS: ToolRow[] = [
   {
     name: "list_inbox",
     description: "List unprocessed inbox captures, with their ids, titles and types.",
+    readOnly: true,
+  },
+  {
+    name: "list_notes",
+    description: "List the workspace's notes, newest first.",
     readOnly: true,
   },
   {
@@ -87,7 +102,7 @@ export function AgentPage() {
             Your agent works here too.
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-slate-300">
-            Orbit Flo registers ten tools with the browser&apos;s WebMCP surface
+            Orbit Flo registers thirteen tools with the browser&apos;s WebMCP surface
             (<code className="font-mono text-cyan-200">document.modelContext</code>). An
             agent-hosting browser calling any of them gets your own signed-in session -
             row-level security and column grants decide what it can touch, not the tool
