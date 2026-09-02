@@ -1,5 +1,7 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import * as galaxyCanvas from "./galaxy-canvas";
+import { REDUCE_GPU_KEY } from "./galaxy-canvas";
 import { SatelliteLoader, StarFieldBackground, starfieldRootClassName } from "./space-visuals";
 
 describe("space visuals", () => {
@@ -88,6 +90,27 @@ describe("space visuals", () => {
 
     it("never applies the --webgl modifier when the galaxy was never selected", () => {
       expect(starfieldRootClassName(false, false)).not.toContain("orbit-starfield-root--webgl");
+    });
+  });
+
+  describe("adaptive quality flag", () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+      window.localStorage.removeItem(REDUCE_GPU_KEY);
+    });
+
+    it("stays on the CSS fallback when a prior measurement flagged this machine, even though WebGL is available", () => {
+      // Stubbed true so the reduce-gpu flag is the only thing that can prevent
+      // a canvas here - jsdom has no WebGL either way, so without this stub
+      // this test would pass whether or not the guard exists.
+      vi.spyOn(galaxyCanvas, "isWebGLAvailable").mockReturnValue(true);
+      window.localStorage.setItem(REDUCE_GPU_KEY, "1");
+
+      const { container } = render(<StarFieldBackground />);
+
+      expect(container.querySelector(".orbit-galaxy-canvas")).toBeNull();
+      expect(container.querySelector(".orbit-starfield-root--webgl")).toBeNull();
+      expect(container.querySelectorAll(".orbit-star-layer")).toHaveLength(3);
     });
   });
 });

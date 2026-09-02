@@ -13,7 +13,7 @@ vi.mock("../features/workspaces/workspace-redirect", () => ({
 }));
 
 vi.mock("./route-loaders", () => ({
-  loadLandingPage: () => Promise.resolve({ default: () => <div>landing page</div> }),
+  loadMarketingHomePage: () => Promise.resolve({ default: () => <div>landing page</div> }),
 }));
 
 import { HomeRoute } from "./home-route";

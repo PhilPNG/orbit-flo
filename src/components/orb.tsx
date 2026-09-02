@@ -31,7 +31,7 @@
  */
 import { Mesh, Program, Renderer, Triangle, Vec3 } from "ogl";
 import { useEffect, useRef, useState } from "react";
-import { isWebGLAvailable } from "./galaxy-canvas";
+import { gpuReduced, isWebGLAvailable } from "./galaxy-canvas";
 
 const FRAME_INTERVAL_MS = 1000 / 30;
 const MAX_DPR = 1.5;
@@ -195,7 +195,7 @@ export function Orb() {
   const [allowed, setAllowed] = useState(() => {
     if (typeof window === "undefined") return false;
     const motionAllowed = !window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    return motionAllowed && isWebGLAvailable();
+    return motionAllowed && !gpuReduced() && isWebGLAvailable();
   });
   // A lost WebGL context (driver reset, GPU crash) leaves the canvas
   // permanently blank unless something reacts. Separate from `allowed`: the
@@ -208,7 +208,7 @@ export function Orb() {
   useEffect(() => {
     const query = window.matchMedia?.("(prefers-reduced-motion: reduce)");
     if (!query) return;
-    const sync = () => setAllowed(!query.matches && isWebGLAvailable());
+    const sync = () => setAllowed(!query.matches && !gpuReduced() && isWebGLAvailable());
     sync();
     query.addEventListener("change", sync);
     return () => query.removeEventListener("change", sync);

@@ -27,6 +27,14 @@ import { useEffect, useRef } from "react";
 /** 30fps. Ambient drift does not read as smoother above this, but it does cost. */
 export const FRAME_INTERVAL_MS = 1000 / 30;
 
+/**
+ * Was 1.5. Measured on the integrated-GPU machines this backdrop was costing
+ * 75% of frame time on: capping at native (1.0) rather than 1.5x reads as
+ * near-identical for ambient drift while cutting a further chunk of the
+ * fragment work StarLayer's 3x3 neighbourhood loop multiplies per layer.
+ */
+const MAX_DPR = 1.0;
+
 // Stable identities. See the header — these must never be inline literals.
 const FOCAL = new Float32Array([0.5, 0.5]);
 const ROTATION = new Float32Array([1, 0]);
@@ -84,6 +92,44 @@ export function isWebGLAvailable(): boolean {
   }
 }
 
+/** Shared by every WebGL backdrop component that consults the adaptive-quality flag. */
+export const REDUCE_GPU_KEY = "orbit-flo:reduce-gpu";
+
+/**
+ * Self-measured verdict on whether this machine should keep the WebGL galaxy
+ * or drop to the CSS fallback. `frameIntervalsMs` are gaps between
+ * consecutive frames the loop actually drew (the frame cap already filters
+ * out anything faster than FRAME_INTERVAL_MS, so this measures real stalls,
+ * not the cap doing its job). Fewer than 30 samples means we haven't watched
+ * long enough to trust a verdict, so we keep the galaxy rather than flip a
+ * machine to the fallback on a single slow frame. The 40ms median threshold
+ * is 25fps - comfortably below the 30fps the loop targets, so a machine that
+ * is merely hitting the cap does not trip this.
+ */
+export function decideQuality(frameIntervalsMs: number[]): "keep" | "fallback" {
+  if (frameIntervalsMs.length < 30) return "keep";
+  const sorted = [...frameIntervalsMs].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  const median = sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
+  return median > 40 ? "fallback" : "keep";
+}
+
+/**
+ * Reads the flag `decideQuality` sets once a machine has been measured as
+ * slow. Every WebGL backdrop component (galaxy, orb, topography) consults
+ * this alongside its own WebGL-availability and reduced-motion checks, so one
+ * measurement on the galaxy - the most expensive of the three - keeps the
+ * whole app off the GPU on a machine that can't afford it.
+ */
+export function gpuReduced(): boolean {
+  try {
+    return window.localStorage.getItem(REDUCE_GPU_KEY) === "1";
+  } catch {
+    // Some privacy tooling throws rather than returning null.
+    return false;
+  }
+}
+
 const vertexShader = `
 attribute vec2 uv;
 attribute vec2 position;
@@ -114,7 +160,11 @@ uniform float uMouseActiveFactor;
 
 varying vec2 vUv;
 
-#define NUM_LAYER 4.0
+// Measured on the integrated-GPU machines this backdrop was costing 75% of
+// frame time on: dropping from 4 layers to 3 reads as near-identical (the
+// star field is dense enough that one fewer depth layer doesn't register)
+// while cutting roughly a fifth of this shader's per-pixel cost.
+#define NUM_LAYER 3.0
 #define STAR_COLOR_CUTOFF 0.2
 #define MAT45 mat2(0.7071, -0.7071, 0.7071, 0.7071)
 #define PERIOD 3.0
@@ -230,7 +280,13 @@ void main() {
 }
 `;
 
-export function GalaxyCanvas({ onContextLost }: { onContextLost?: () => void }) {
+export function GalaxyCanvas({
+  onContextLost,
+  onQualityFallback,
+}: {
+  onContextLost?: () => void;
+  onQualityFallback?: () => void;
+}) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   // Stored in a ref, not read directly: the effect below has empty deps by
   // design (see the header — inline array props would re-initialise WebGL on
@@ -239,16 +295,18 @@ export function GalaxyCanvas({ onContextLost }: { onContextLost?: () => void }) 
   // dependency.
   const onContextLostRef = useRef(onContextLost);
   onContextLostRef.current = onContextLost;
+  const onQualityFallbackRef = useRef(onQualityFallback);
+  onQualityFallbackRef.current = onQualityFallback;
 
   useEffect(() => {
     const host = hostRef.current;
     if (!host) return;
 
-    // Capped at 1.5, not left uncapped: StarLayer runs a 3x3 neighbourhood loop
-    // across 4 layers per pixel, so uncapped DPR on a retina display would
-    // roughly quadruple fragment work for a resolution gain past this point
-    // that is not visible in an ambient backdrop.
-    const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    // Capped at MAX_DPR, not left uncapped: StarLayer runs a 3x3 neighbourhood
+    // loop across NUM_LAYER layers per pixel, so uncapped DPR on a retina
+    // display would multiply fragment work for a resolution gain past this
+    // point that is not visible in an ambient backdrop.
+    const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
     const renderer = new Renderer({ alpha: true, premultipliedAlpha: false, dpr });
     const gl = renderer.gl;
     gl.enable(gl.BLEND);
@@ -321,6 +379,17 @@ export function GalaxyCanvas({ onContextLost }: { onContextLost?: () => void }) 
     let elapsedMs = 0;
     let lastRenderAt: number | null = null;
 
+    // Self-measurement: only frames the loop actually draws (after the frame
+    // cap gate above), so this measures real stalls rather than the cap doing
+    // its job. Capped at 60 samples and decided once, around the 4-second
+    // mark, so a machine that starts slow (page load contention) but recovers
+    // isn't judged on its worst moment, and a machine that never recovers
+    // gets flipped before the user has sat through much more than that.
+    let qualitySamples: number[] = [];
+    let qualityLastFrameAt: number | null = null;
+    let qualityStartedAt: number | null = null;
+    let qualityDecided = false;
+
     const update = (now: number) => {
       frameId = requestAnimationFrame(update);
       if (!shouldRenderFrame(now, lastFrameAt, document.hidden)) {
@@ -333,6 +402,26 @@ export function GalaxyCanvas({ onContextLost }: { onContextLost?: () => void }) 
       lastFrameAt = now;
       elapsedMs = advanceAnimationTime(elapsedMs, now, lastRenderAt);
       lastRenderAt = now;
+
+      if (!qualityDecided) {
+        if (qualityStartedAt === null) qualityStartedAt = now;
+        if (qualityLastFrameAt !== null && qualitySamples.length < 60) {
+          qualitySamples.push(now - qualityLastFrameAt);
+        }
+        qualityLastFrameAt = now;
+        if (now - qualityStartedAt >= 4000) {
+          qualityDecided = true;
+          if (decideQuality(qualitySamples) === "fallback") {
+            try {
+              window.localStorage.setItem(REDUCE_GPU_KEY, "1");
+            } catch {
+              // Preference persistence is best-effort - the fallback still
+              // fires for this session via the callback below either way.
+            }
+            onQualityFallbackRef.current?.();
+          }
+        }
+      }
 
       const elapsedSeconds = elapsedMs * 0.001;
       program.uniforms.uTime.value = elapsedSeconds;

@@ -60,18 +60,21 @@ describe("useAgentTools", () => {
     }).not.toThrow();
   });
 
-  it("registers all seven tools when the API exists", async () => {
+  it("registers all ten tools when the API exists", async () => {
     const registered = installFakeModelContext();
 
     mount("ws-1");
 
     // Registration happens after the session resolves, so it is async.
-    await vi.waitFor(() => expect(registered.length).toBe(7));
+    await vi.waitFor(() => expect(registered.length).toBe(10));
     expect(registered.map((r) => r.name).sort()).toEqual([
+      "add_to_flight_plan",
       "capture_thought",
       "complete_plan_item",
       "create_task",
+      "file_capture_as_task",
       "get_flight_plan",
+      "list_inbox",
       "list_projects",
       "move_task",
       "search_workspace",
@@ -82,7 +85,7 @@ describe("useAgentTools", () => {
     const registered = installFakeModelContext();
 
     const view = mount("ws-1");
-    await vi.waitFor(() => expect(registered.length).toBe(7));
+    await vi.waitFor(() => expect(registered.length).toBe(10));
     expect(registered[0].signal?.aborted).toBe(false);
 
     view.unmount();
@@ -93,7 +96,7 @@ describe("useAgentTools", () => {
     const registered = installFakeModelContext();
 
     const view = mount("ws-1");
-    await vi.waitFor(() => expect(registered.length).toBe(7));
+    await vi.waitFor(() => expect(registered.length).toBe(10));
     const firstBatch = [...registered];
 
     view.rerender(
@@ -105,6 +108,6 @@ describe("useAgentTools", () => {
     );
 
     expect(firstBatch.every((r) => r.signal?.aborted)).toBe(true);
-    await vi.waitFor(() => expect(registered.length).toBe(14));
+    await vi.waitFor(() => expect(registered.length).toBe(20));
   });
 });

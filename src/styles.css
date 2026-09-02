@@ -981,6 +981,15 @@ select {
   display: none;
 }
 
+/* Loading screens only: the whole starfield turns, one revolution per four
+   minutes. Oversized so the rotation never exposes a layer edge - the star
+   layers bleed 220px, but the diagonal of a rotated rect needs ~1.42x cover.
+   The app backdrop must never rotate; parallax plus rotation reads as drift. */
+.orbit-loader-rotate {
+  position: absolute;
+  inset: -22%;
+}
+
 .orbit-galaxy-canvas {
   position: absolute;
   inset: 0;
@@ -1480,6 +1489,10 @@ select {
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  .orbit-loader-rotate {
+    animation: orbit-loader-spin 240s linear infinite;
+  }
+
   .orbit-panel:hover {
     transition: border-color 180ms ease;
     border-color: rgba(148, 163, 184, 0.28);
@@ -1664,6 +1677,12 @@ select {
     animation-iteration-count: 1 !important;
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+@keyframes orbit-loader-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 

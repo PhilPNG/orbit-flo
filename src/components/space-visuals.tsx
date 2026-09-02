@@ -1,7 +1,7 @@
 import { clsx } from "clsx";
 import { useMemo, useState } from "react";
 import { orbitAssets } from "../lib/orbit-assets";
-import { GalaxyCanvas, isWebGLAvailable } from "./galaxy-canvas";
+import { GalaxyCanvas, gpuReduced, isWebGLAvailable } from "./galaxy-canvas";
 
 /**
  * Pure so it is testable without a WebGL context: a jsdom test can call this
@@ -20,19 +20,24 @@ export function StarFieldBackground() {
     if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
       return false;
     }
+    if (gpuReduced()) return false;
     return isWebGLAvailable();
   }, []);
   // A lost WebGL context (driver reset, GPU crash) leaves the canvas blank
   // forever unless something reacts. Once this fires we stop mounting
   // GalaxyCanvas and drop the --webgl modifier so the CSS star layers —
   // hidden while the canvas draws them — come back instead of leaving the
-  // user with nebula and grain only.
+  // user with nebula and grain only. The same flip serves a self-measured
+  // quality fallback (see galaxy-canvas.tsx's decideQuality): one mechanism,
+  // two triggers.
   const [contextLost, setContextLost] = useState(false);
   const showGalaxy = useGalaxy && !contextLost;
 
   return (
     <div aria-hidden="true" className={starfieldRootClassName(useGalaxy, contextLost)}>
-      {showGalaxy ? <GalaxyCanvas onContextLost={() => setContextLost(true)} /> : null}
+      {showGalaxy ? (
+        <GalaxyCanvas onContextLost={() => setContextLost(true)} onQualityFallback={() => setContextLost(true)} />
+      ) : null}
       <div className="orbit-star-layer orbit-starfield orbit-starfield-far" />
       <div className="orbit-star-layer orbit-starfield orbit-starfield-mid" />
       <div className="orbit-star-layer orbit-starfield orbit-starfield-near" />

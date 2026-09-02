@@ -1,5 +1,13 @@
-import { describe, expect, it } from "vitest";
-import { advanceAnimationTime, FRAME_INTERVAL_MS, isWebGLAvailable, shouldRenderFrame } from "./galaxy-canvas";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  advanceAnimationTime,
+  decideQuality,
+  FRAME_INTERVAL_MS,
+  gpuReduced,
+  isWebGLAvailable,
+  REDUCE_GPU_KEY,
+  shouldRenderFrame,
+} from "./galaxy-canvas";
 
 describe("shouldRenderFrame", () => {
   it("never renders while the tab is hidden", () => {
@@ -63,5 +71,76 @@ describe("isWebGLAvailable", () => {
     // this question and takes the CSS path. If this ever returns true here,
     // the guard is not doing what the whole design depends on.
     expect(isWebGLAvailable()).toBe(false);
+  });
+});
+
+describe("decideQuality", () => {
+  it("keeps the galaxy under 30 samples, however slow they are", () => {
+    // Not enough of a look at the machine to trust a verdict - a burst of 29
+    // terrible frames (say, from page-load contention) must not be enough to
+    // flip a fine machine to the fallback permanently.
+    const slowButFew = Array(29).fill(200);
+    expect(decideQuality(slowButFew)).toBe("keep");
+  });
+
+  it("keeps the galaxy at exactly 30 samples when the median is at or under the threshold", () => {
+    const fast = Array(30).fill(16);
+    expect(decideQuality(fast)).toBe("keep");
+  });
+
+  it("falls back at exactly 30 samples once the median clears 40ms", () => {
+    const slow = Array(30).fill(41);
+    expect(decideQuality(slow)).toBe("fallback");
+  });
+
+  it("keeps the galaxy when the median sits exactly on the 40ms threshold", () => {
+    // Strictly greater-than: a median of exactly 40ms is 25fps, not below it.
+    const atThreshold = Array(30).fill(40);
+    expect(decideQuality(atThreshold)).toBe("keep");
+  });
+
+  it("judges by the median, not the mean, so a few very slow frames don't skew the verdict", () => {
+    // 29 fast frames and one catastrophic one: the mean would clear 40ms, the
+    // median (16ms) does not.
+    const mostlyFast = [...Array(29).fill(16), 5000];
+    expect(decideQuality(mostlyFast)).toBe("keep");
+  });
+
+  it("handles unsorted input, since real frame intervals arrive in time order, not sorted order", () => {
+    const unsorted = [50, 10, 90, 45, 60, 5, 100, 30, 70, 20, 55, 15, 95, 25, 65, 35, 80, 40, 75, 5, 85, 45, 60, 10, 50, 90, 30, 70, 20, 55];
+    expect(unsorted.length).toBe(30);
+    expect(decideQuality(unsorted)).toBe("fallback");
+  });
+
+  it("does not mutate the array it is given", () => {
+    const samples = Array(30).fill(50);
+    const original = [...samples];
+    decideQuality(samples);
+    expect(samples).toEqual(original);
+  });
+});
+
+describe("gpuReduced", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    window.localStorage.removeItem(REDUCE_GPU_KEY);
+  });
+
+  it("reports false when the flag was never set", () => {
+    expect(gpuReduced()).toBe(false);
+  });
+
+  it("reports true once the flag is set", () => {
+    window.localStorage.setItem(REDUCE_GPU_KEY, "1");
+    expect(gpuReduced()).toBe(true);
+  });
+
+  it("reports false when localStorage throws, rather than propagating", () => {
+    // Some privacy tooling throws on access rather than returning null - the
+    // same defensiveness isWebGLAvailable already applies to its own probe.
+    vi.spyOn(window.localStorage, "getItem").mockImplementation(() => {
+      throw new Error("localStorage blocked");
+    });
+    expect(gpuReduced()).toBe(false);
   });
 });

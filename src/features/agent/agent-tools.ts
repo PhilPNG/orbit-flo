@@ -17,10 +17,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database, WorkItemStatus, CaptureType } from "../../lib/supabase/database.types";
 import { formatPlanDate } from "../daily/daily-plan.utils";
 import {
+  addDailyPlanItem,
   completeDailyPlanItem,
   createCapture,
   getDailyMissionControlData,
+  getOrCreateDailyPlan,
 } from "../daily/daily-plan.queries";
+import { listInboxCaptures, updateCapture } from "../inbox/captures.queries";
 import { listProjects } from "../projects/projects.queries";
 import { searchWorkspace } from "../search/search.queries";
 import { createWorkItem, updateWorkItemStatus, workItemStatuses } from "../work-items/work-items.queries";
@@ -38,6 +41,10 @@ export type AgentTool = {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  /** Set only on tools that read and never write, so a host can offer them
+   *  without the confirmation a mutation deserves. Mutating tools declare
+   *  nothing here - absence, not `false`, is their answer. */
+  annotations?: { readOnlyHint?: boolean };
   execute: (input: Record<string, unknown>) => Promise<AgentToolResult>;
 };
 
@@ -82,6 +89,7 @@ export function buildAgentTools(context: AgentToolContext): AgentTool[] {
       description:
         "List the projects in the user's current workspace, with their ids, names and statuses. Call this first to get project ids for other tools.",
       inputSchema: { type: "object", properties: {}, required: [] },
+      annotations: { readOnlyHint: true },
       execute: guarded(async () => {
         const projects = await listProjects(client, workspaceId);
         return text(JSON.stringify(projects.map((p) => ({ id: p.id, name: p.name, status: p.status }))));
@@ -92,6 +100,7 @@ export function buildAgentTools(context: AgentToolContext): AgentTool[] {
       description:
         "Get today's daily plan (the flight plan): its items with their ids and states, plus due work items. Use the item ids with complete_plan_item.",
       inputSchema: { type: "object", properties: {}, required: [] },
+      annotations: { readOnlyHint: true },
       execute: guarded(async () => {
         const data = await getDailyMissionControlData(client, workspaceId, formatPlanDate());
         // Projected, not dumped: the query selects * on every non-done work
@@ -155,6 +164,78 @@ export function buildAgentTools(context: AgentToolContext): AgentTool[] {
       }),
     },
     {
+      name: "file_capture_as_task",
+      description:
+        "Turn an unprocessed inbox capture into a task in a project. Get captureId from list_inbox and projectId from list_projects. Marks the capture processed so it leaves the inbox.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          captureId: { type: "string", description: "Id of the capture, from list_inbox" },
+          projectId: { type: "string", description: "Id of the project, from list_projects" },
+          dueDate: { type: "string", description: "Optional due date, YYYY-MM-DD" },
+        },
+        required: ["captureId", "projectId"],
+      },
+      execute: guarded(async (input) => {
+        const captureId = requireText(input.captureId);
+        const projectId = requireText(input.projectId);
+        if (!captureId || !projectId) return text("file_capture_as_task needs a captureId and a projectId.");
+
+        const captures = await listInboxCaptures(client, workspaceId);
+        const capture = captures.find((c) => c.id === captureId);
+        if (!capture) return text("No unprocessed capture with that id was found in the inbox.");
+
+        // Exactly the inbox page's sequence: the task must exist before the
+        // capture is marked processed, or a mid-sequence failure loses the
+        // capture with nothing to show for it.
+        const item = await createWorkItem(client, {
+          workspaceId,
+          projectId,
+          userId,
+          title: capture.title,
+          description: capture.body ?? "",
+          dueDate: input.dueDate ? String(input.dueDate) : undefined,
+          priority: "medium",
+          status: "backlog",
+        });
+        await updateCapture(client, {
+          id: capture.id,
+          workspaceId,
+          projectId,
+          processedAt: new Date().toISOString(),
+        });
+        await invalidate(["inbox-captures"], ["work-items"], ["workspace-work-items"], ["daily-mission-control"]);
+        return text(`Filed capture "${capture.title}" as task "${item.title}" (${item.id}).`);
+      }),
+    },
+    {
+      name: "add_to_flight_plan",
+      description:
+        "Add a task to today's flight plan. Requires a taskId, from create_task, file_capture_as_task, search_workspace or get_flight_plan.",
+      inputSchema: {
+        type: "object",
+        properties: { taskId: { type: "string", description: "Id of the task/work item to add" } },
+        required: ["taskId"],
+      },
+      execute: guarded(async (input) => {
+        const taskId = requireText(input.taskId);
+        if (!taskId) return text("add_to_flight_plan needs a non-empty taskId.");
+
+        const planDate = formatPlanDate();
+        const plan = await getOrCreateDailyPlan(client, { workspaceId, userId, planDate });
+        const data = await getDailyMissionControlData(client, workspaceId, planDate);
+        await addDailyPlanItem(client, {
+          workspaceId,
+          dailyPlanId: plan.id,
+          workItemId: taskId,
+          sortOrder: data.dailyPlanItems.length,
+          isPrimary: false,
+        });
+        await invalidate(["daily-mission-control"]);
+        return text(`Added task ${taskId} to today's flight plan.`);
+      }),
+    },
+    {
       name: "move_task",
       description:
         "Move a task to another status column. Valid statuses: backlog, ready, in_progress, blocked, review, done. The board updates immediately.",
@@ -191,10 +272,27 @@ export function buildAgentTools(context: AgentToolContext): AgentTool[] {
         properties: { query: { type: "string", description: "Search terms" } },
         required: ["query"],
       },
+      annotations: { readOnlyHint: true },
       execute: guarded(async (input) => {
         const results = await searchWorkspace(client, workspaceId, String(input.query));
         if (results.length === 0) return text("No results.");
         return text(JSON.stringify(results.slice(0, 12)));
+      }),
+    },
+    {
+      name: "list_inbox",
+      description:
+        "List up to 20 unprocessed captures in the inbox, with their ids, titles, types and bodies. Use file_capture_as_task with a projectId from list_projects to turn one into a task.",
+      inputSchema: { type: "object", properties: {}, required: [] },
+      annotations: { readOnlyHint: true },
+      execute: guarded(async () => {
+        const captures = await listInboxCaptures(client, workspaceId);
+        if (captures.length === 0) return text("The inbox is empty.");
+        return text(
+          JSON.stringify(
+            captures.slice(0, 20).map((c) => ({ id: c.id, title: c.title, type: c.type, body: c.body })),
+          ),
+        );
       }),
     },
     {

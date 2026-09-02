@@ -25,6 +25,7 @@
  */
 import { Mesh, Program, Renderer, Triangle } from "ogl";
 import { useEffect, useRef, useState } from "react";
+import { gpuReduced } from "./galaxy-canvas";
 // Self-namespace import so the two internal `hasWebGL2()` call sites below
 // resolve through this module's live export binding rather than the local
 // declaration directly. Without this indirection, `vi.spyOn(module,
@@ -137,6 +138,7 @@ export function Topography() {
   const [allowed, setAllowed] = useState(() => {
     if (typeof window === "undefined") return false;
     if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return false;
+    if (gpuReduced()) return false;
     return self.hasWebGL2();
   });
   // A lost WebGL context (driver reset, GPU crash) leaves the canvas
@@ -150,7 +152,7 @@ export function Topography() {
   useEffect(() => {
     const query = window.matchMedia?.("(prefers-reduced-motion: reduce)");
     if (!query) return;
-    const sync = () => setAllowed(!query.matches && self.hasWebGL2());
+    const sync = () => setAllowed(!query.matches && !gpuReduced() && self.hasWebGL2());
     sync();
     query.addEventListener("change", sync);
     return () => query.removeEventListener("change", sync);

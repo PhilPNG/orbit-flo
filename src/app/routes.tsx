@@ -12,26 +12,32 @@ import { WorkspaceRedirect } from "../features/workspaces/workspace-redirect";
 import { HomeRoute } from "./home-route";
 import { DelayedFallback, RouteSettle } from "./route-transition";
 import {
+  loadAgentPage,
   loadCalendarPage,
   loadDailyMissionControlPage,
   loadDashboardPage,
+  loadFeaturesPage,
   loadInboxPage,
   loadMapsPage,
   loadMilestonePage,
   loadNotesPage,
+  loadOpenSourcePage,
   loadProjectWorkspacePage,
   loadProjectsPage,
   loadSettingsPage,
   loadSignalsPage,
 } from "./route-loaders";
 
+const AgentPage = lazy(loadAgentPage);
 const CalendarPage = lazy(loadCalendarPage);
 const DailyMissionControlPage = lazy(loadDailyMissionControlPage);
 const DashboardPage = lazy(loadDashboardPage);
+const FeaturesPage = lazy(loadFeaturesPage);
 const InboxPage = lazy(loadInboxPage);
 const MapsPage = lazy(loadMapsPage);
 const MilestonePage = lazy(loadMilestonePage);
 const NotesPage = lazy(loadNotesPage);
+const OpenSourcePage = lazy(loadOpenSourcePage);
 const ProjectWorkspacePage = lazy(loadProjectWorkspacePage);
 const ProjectsPage = lazy(loadProjectsPage);
 const SettingsPage = lazy(loadSettingsPage);
@@ -103,6 +109,11 @@ export function AppRoutes() {
           />
         ) : null}
         <Route element={<HomeRoute />} path="/" />
+        {/* Public marketing pages: no auth gate, and signed-in visitors are
+            not redirected away from them - only "/" branches on auth state. */}
+        <Route element={<LazyRoute><FeaturesPage /></LazyRoute>} path="/features" />
+        <Route element={<LazyRoute><AgentPage /></LazyRoute>} path="/agent" />
+        <Route element={<LazyRoute><OpenSourcePage /></LazyRoute>} path="/open-source" />
         <Route element={<ResolveWorkspace />} path="/dashboard" />
         <Route element={<ResolveWorkspace />} path="/projects" />
         <Route element={<ResolveWorkspace />} path="/projects/:projectId" />

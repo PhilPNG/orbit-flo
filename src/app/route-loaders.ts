@@ -10,8 +10,17 @@ export const loadDailyMissionControlPage = () =>
 export const loadInboxPage = () =>
   import("../features/inbox/inbox-page").then((module) => ({ default: module.InboxPage }));
 
-export const loadLandingPage = () =>
-  import("../features/landing/landing-page").then((module) => ({ default: module.LandingPage }));
+export const loadMarketingHomePage = () =>
+  import("../features/marketing/home-page").then((module) => ({ default: module.HomePage }));
+
+export const loadFeaturesPage = () =>
+  import("../features/marketing/features-page").then((module) => ({ default: module.FeaturesPage }));
+
+export const loadAgentPage = () =>
+  import("../features/marketing/agent-page").then((module) => ({ default: module.AgentPage }));
+
+export const loadOpenSourcePage = () =>
+  import("../features/marketing/open-source-page").then((module) => ({ default: module.OpenSourcePage }));
 
 export const loadMapsPage = () =>
   import("../features/maps/maps-page").then((module) => ({ default: module.MapsPage }));

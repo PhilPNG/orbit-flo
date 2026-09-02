@@ -48,12 +48,15 @@ vi.mock("../features/auth/use-auth", () => ({
 }));
 
 vi.mock("./route-loaders", () => ({
+  loadAgentPage: () => Promise.resolve({ default: () => <div>Agent page</div> }),
   loadCalendarPage: () => Promise.resolve({ default: () => <div>Calendar page</div> }),
   loadDailyMissionControlPage: () => Promise.resolve({ default: () => <div>Daily Mission Control page</div> }),
   loadDashboardPage: () => Promise.resolve({ default: () => <div>Dashboard page</div> }),
+  loadFeaturesPage: () => Promise.resolve({ default: () => <div>Features page</div> }),
   loadInboxPage: () => Promise.resolve({ default: () => <div>Inbox page</div> }),
-  loadLandingPage: () => Promise.resolve({ default: () => <div>Landing page</div> }),
+  loadMarketingHomePage: () => Promise.resolve({ default: () => <div>Landing page</div> }),
   loadMapsPage: () => Promise.resolve({ default: () => <h1>Visual planning workspace</h1> }),
+  loadOpenSourcePage: () => Promise.resolve({ default: () => <div>Open source page</div> }),
   loadMilestonePage: () => Promise.resolve({ default: () => <div>Milestone page</div> }),
   loadNotesPage: () => Promise.resolve({ default: () => <div>Notes page</div> }),
   loadProjectWorkspacePage: () => Promise.resolve({ default: () => <div>Project workspace page</div> }),

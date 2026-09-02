@@ -16,13 +16,23 @@ vi.mock("../search/search.queries", () => ({
   searchWorkspace: vi.fn().mockResolvedValue([]),
 }));
 vi.mock("../daily/daily-plan.queries", () => ({
-  getDailyMissionControlData: vi.fn().mockResolvedValue({ plan: null, workItems: [] }),
+  getDailyMissionControlData: vi.fn().mockResolvedValue({ plan: null, workItems: [], dailyPlanItems: [] }),
   createCapture: vi.fn().mockResolvedValue({ id: "c1", title: "Thought" }),
   completeDailyPlanItem: vi.fn().mockResolvedValue({ id: "d1", state: "completed" }),
+  getOrCreateDailyPlan: vi.fn().mockResolvedValue({ id: "plan-1" }),
+  addDailyPlanItem: vi.fn().mockResolvedValue({ id: "dpi-1" }),
+}));
+vi.mock("../inbox/captures.queries", () => ({
+  listInboxCaptures: vi
+    .fn()
+    .mockResolvedValue([{ id: "c1", title: "Ask the agent to triage this inbox", type: "idea", body: null }]),
+  updateCapture: vi.fn().mockResolvedValue({ id: "c1" }),
 }));
 
 import { createWorkItem, updateWorkItemStatus } from "../work-items/work-items.queries";
-import { completeDailyPlanItem } from "../daily/daily-plan.queries";
+import { addDailyPlanItem, completeDailyPlanItem, getOrCreateDailyPlan } from "../daily/daily-plan.queries";
+import { formatPlanDate } from "../daily/daily-plan.utils";
+import { listInboxCaptures, updateCapture } from "../inbox/captures.queries";
 
 const context = () => ({
   client: {} as never,
@@ -34,14 +44,17 @@ const context = () => ({
 describe("buildAgentTools", () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it("exposes exactly the seven approved tools, and none of the dangerous ones", () => {
+  it("exposes exactly the ten approved tools, and none of the dangerous ones", () => {
     const names = buildAgentTools(context()).map((tool) => tool.name).sort();
 
     expect(names).toEqual([
+      "add_to_flight_plan",
       "capture_thought",
       "complete_plan_item",
       "create_task",
+      "file_capture_as_task",
       "get_flight_plan",
+      "list_inbox",
       "list_projects",
       "move_task",
       "search_workspace",
@@ -53,6 +66,15 @@ describe("buildAgentTools", () => {
       expect(tool.description.length).toBeGreaterThan(20);
       expect((tool.inputSchema as { type: string }).type).toBe("object");
     }
+  });
+
+  it("marks exactly the read-only tools with readOnlyHint, so a host can distinguish safe calls from mutations", () => {
+    const readOnly = buildAgentTools(context())
+      .filter((tool) => tool.annotations?.readOnlyHint === true)
+      .map((tool) => tool.name)
+      .sort();
+
+    expect(readOnly).toEqual(["get_flight_plan", "list_inbox", "list_projects", "search_workspace"]);
   });
 
   it("create_task calls the domain function with the context's workspace and user", async () => {
@@ -115,5 +137,85 @@ describe("buildAgentTools", () => {
     const result = await complete.execute({ id: "d1" });
 
     expect(result.content[0].text).toContain("row-level security");
+  });
+
+  it("list_inbox returns the unprocessed captures as JSON", async () => {
+    const list = buildAgentTools(context()).find((tool) => tool.name === "list_inbox")!;
+
+    const result = await list.execute({});
+
+    expect(listInboxCaptures).toHaveBeenCalled();
+    expect(result.content[0].text).toContain("Ask the agent to triage this inbox");
+  });
+
+  it("list_inbox reports an empty inbox in words, not an empty array", async () => {
+    vi.mocked(listInboxCaptures).mockResolvedValueOnce([]);
+    const list = buildAgentTools(context()).find((tool) => tool.name === "list_inbox")!;
+
+    const result = await list.execute({});
+
+    expect(result.content[0].text).toBe("The inbox is empty.");
+  });
+
+  it("file_capture_as_task refuses a captureId that isn't in the unprocessed inbox", async () => {
+    const file = buildAgentTools(context()).find((tool) => tool.name === "file_capture_as_task")!;
+
+    const result = await file.execute({ captureId: "missing", projectId: "p1" });
+
+    expect(createWorkItem).not.toHaveBeenCalled();
+    expect(updateCapture).not.toHaveBeenCalled();
+    expect(result.content[0].text.toLowerCase()).toContain("capture");
+  });
+
+  it("file_capture_as_task creates the task before marking the capture processed, so a mid-sequence failure never loses the capture", async () => {
+    const ctx = context();
+    const invalidate = vi.spyOn(ctx.queryClient, "invalidateQueries");
+    const file = buildAgentTools(ctx).find((tool) => tool.name === "file_capture_as_task")!;
+
+    const result = await file.execute({ captureId: "c1", projectId: "p1" });
+
+    expect(createWorkItem).toHaveBeenCalledWith(
+      ctx.client,
+      expect.objectContaining({
+        workspaceId: "ws-1",
+        projectId: "p1",
+        userId: "user-1",
+        title: "Ask the agent to triage this inbox",
+      }),
+    );
+    expect(updateCapture).toHaveBeenCalledWith(ctx.client, {
+      id: "c1",
+      workspaceId: "ws-1",
+      projectId: "p1",
+      processedAt: expect.any(String),
+    });
+    expect(vi.mocked(createWorkItem).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(updateCapture).mock.invocationCallOrder[0],
+    );
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["inbox-captures"] });
+    expect(result.content[0].text).toContain("Ship it");
+  });
+
+  it("add_to_flight_plan gets or creates today's plan, then appends the task to it", async () => {
+    const ctx = context();
+    const invalidate = vi.spyOn(ctx.queryClient, "invalidateQueries");
+    const add = buildAgentTools(ctx).find((tool) => tool.name === "add_to_flight_plan")!;
+
+    const result = await add.execute({ taskId: "w1" });
+
+    expect(getOrCreateDailyPlan).toHaveBeenCalledWith(ctx.client, {
+      workspaceId: "ws-1",
+      userId: "user-1",
+      planDate: formatPlanDate(),
+    });
+    expect(addDailyPlanItem).toHaveBeenCalledWith(ctx.client, {
+      workspaceId: "ws-1",
+      dailyPlanId: "plan-1",
+      workItemId: "w1",
+      sortOrder: 0,
+      isPrimary: false,
+    });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["daily-mission-control"] });
+    expect(result.content[0].text).toContain("w1");
   });
 });

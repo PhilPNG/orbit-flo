@@ -8,14 +8,16 @@ import { lazy, Suspense } from "react";
 import { SatelliteLoader, StarFieldBackground } from "../components/space-visuals";
 import { useAuth } from "../features/auth/use-auth";
 import { WorkspaceRedirect } from "../features/workspaces/workspace-redirect";
-import { loadLandingPage } from "./route-loaders";
+import { loadMarketingHomePage } from "./route-loaders";
 
-const LandingPage = lazy(loadLandingPage);
+const MarketingHomePage = lazy(loadMarketingHomePage);
 
 function HomeLoader() {
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#020817] px-6">
-      <StarFieldBackground />
+      <div aria-hidden="true" className="orbit-loader-rotate">
+        <StarFieldBackground />
+      </div>
       <div className="relative z-10">
         <SatelliteLoader label="Preparing your orbit" />
       </div>
@@ -31,7 +33,7 @@ export function HomeRoute() {
 
   return (
     <Suspense fallback={<HomeLoader />}>
-      <LandingPage />
+      <MarketingHomePage />
     </Suspense>
   );
 }
