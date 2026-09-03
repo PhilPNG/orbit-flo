@@ -51,4 +51,11 @@ describe("TemplateThumbnail", () => {
     const circle = container.querySelector("circle");
     expect(circle?.getAttribute("cx")).toBe("48");
   });
+
+  it("renders the medium size with a 160x90 viewBox that fills its container", () => {
+    const { container } = render(<TemplateThumbnail edges={[]} nodes={[]} size="md" />);
+    const svg = container.querySelector("svg") as SVGSVGElement;
+    expect(svg.getAttribute("viewBox")).toBe("0 0 160 90");
+    expect(svg).toHaveClass("w-full");
+  });
 });

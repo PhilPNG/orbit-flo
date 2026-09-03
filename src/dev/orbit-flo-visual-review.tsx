@@ -3,7 +3,6 @@ import { Plus } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Navigate, useParams } from "react-router-dom";
 import { AppShell } from "../components/app-shell";
-import { EmptyState } from "../components/empty-state";
 import { AuthPage } from "../features/auth/auth-page";
 import { AuthStateProvider, type AuthState } from "../features/auth/use-auth";
 import { invitationsQueryKey } from "../features/invitations/invitations.queries";
@@ -28,9 +27,9 @@ import { PrivateReflectionPanel } from "../features/daily/private-reflection-pan
 import { QuickCaptureDock } from "../features/daily/quick-capture-dock";
 import { TodayTimeline } from "../features/daily/today-timeline";
 import type { DailyPlanItemWithWorkItem } from "../features/daily/daily-plan.queries";
-import { MapCanvas } from "../features/maps/map-canvas";
-import { MapLibraryPanel } from "../features/maps/map-library-panel";
-import { MapToolbar } from "../features/maps/map-toolbar";
+import { MapEditorPage } from "../features/maps/map-editor-page";
+import { MapLibraryPage } from "../features/maps/map-library-page";
+import { mindMapKeys } from "../features/maps/maps.queries";
 import { NotesPage } from "../features/notes/notes-page";
 import { ProjectBriefPanel } from "../features/projects/project-brief-panel";
 import { ProjectRitualsPanel } from "../features/projects/project-rituals-panel";
@@ -53,6 +52,9 @@ import {
   visualChecklist,
   visualComments,
   visualLabels,
+  visualMapId,
+  visualMapPreviews,
+  visualMapRows,
   visualMilestones,
   visualMindMap,
   visualProjectId,
@@ -158,6 +160,9 @@ function createVisualQueryClient() {
   client.setQueryData([...detailsKey, "labels"], visualLabels);
   client.setQueryData(workItemDetailsKeys.labels(visualWorkspaceId, visualProjectId), visualLabels);
   client.setQueryData(workItemDetailsKeys.meta(visualWorkspaceId, visualProjectId), visualBoardMeta);
+  client.setQueryData(mindMapKeys.list(visualWorkspaceId, null), visualMapRows);
+  client.setQueryData(mindMapKeys.previews(visualWorkspaceId, null), visualMapPreviews);
+  client.setQueryData(mindMapKeys.graph(visualWorkspaceId, visualMapId), visualMindMap);
 
   return client;
 }
@@ -183,26 +188,7 @@ function ProductScreen({ children }: { children: ReactNode }) {
 function MapsLibraryScreen() {
   return (
     <ProductScreen>
-      <div className="grid gap-6">
-        <h1 className="text-3xl font-bold text-white">Visual planning workspace</h1>
-        <div className="grid gap-4 lg:grid-cols-[288px_minmax(0,1fr)]">
-          <MapLibraryPanel
-            isCreating={false}
-            onCreateBlank={() => undefined}
-            onCreateFromTemplate={() => undefined}
-          />
-          <section className="grid min-w-0 content-start gap-3">
-            <select aria-label="Open map" className="orbit-input max-w-56 px-2.5 py-1.5 text-xs" defaultValue="">
-              <option value="">Open map…</option>
-            </select>
-            <EmptyState
-              illustration="maps"
-              title="Choose a visual plan"
-              message="Start a blank map or pick a template to open the planning canvas."
-            />
-          </section>
-        </div>
-      </div>
+      <MapLibraryPage onOpenMap={() => undefined} />
     </ProductScreen>
   );
 }
@@ -210,40 +196,11 @@ function MapsLibraryScreen() {
 function MindMapScreen() {
   return (
     <ProductScreen>
-      <div className="grid gap-6">
-        <h1 className="text-3xl font-bold text-white">Visual planning workspace</h1>
-        <div className="grid gap-4 lg:grid-cols-[288px_minmax(0,1fr)]">
-          <MapLibraryPanel
-            isCreating={false}
-            onCreateBlank={() => undefined}
-            onCreateFromTemplate={() => undefined}
-          />
-          <section className="grid min-w-0 content-start gap-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <select aria-label="Open map" className="orbit-input max-w-56 px-2.5 py-1.5 text-xs" defaultValue="feature-plan">
-                <option value="feature-plan">Feature plan</option>
-              </select>
-              <MapToolbar
-                activeView="mind_map"
-                hasSelection
-                isDirty
-                isSaving={false}
-                onAddNode={() => undefined}
-                onOpenDetails={() => undefined}
-                onSave={() => undefined}
-                onViewChange={() => undefined}
-              />
-            </div>
-            <MapCanvas
-              graph={visualMindMap}
-              selectedNodeId="feature"
-              view="mind_map"
-              onChange={() => undefined}
-              onSelectNode={() => undefined}
-            />
-          </section>
-        </div>
-      </div>
+      <MapEditorPage
+        initialSelection={{ kind: "node", id: visualMindMap.nodes[0].id }}
+        mapId={visualMapId}
+        onBack={() => undefined}
+      />
     </ProductScreen>
   );
 }

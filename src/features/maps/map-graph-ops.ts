@@ -1,5 +1,6 @@
 import type { MindMapNodeType } from "../../lib/supabase/database.types";
-import type { EditableMapGraph, EditableMapNode } from "./map-types";
+import { placeNewNode } from "./map-layouts";
+import type { EditableMapEdge, EditableMapGraph, EditableMapNode } from "./map-types";
 
 const accentByNodeType: Record<MindMapNodeType, "cyan" | "blue" | "violet"> = {
   idea: "cyan",
@@ -61,11 +62,29 @@ export function createConnectedNode(
 
   return {
     ...graph,
-    nodes: [...graph.nodes, blankNode(nodeId, { x: source.position.x + 180, y: source.position.y + 40 })],
+    nodes: [
+      ...graph.nodes,
+      blankNode(nodeId, placeNewNode(graph.nodes, { x: source.position.x + 180, y: source.position.y + 40 })),
+    ],
     edges: [
       ...graph.edges,
       { id: edgeId, sourceNodeId, targetNodeId: nodeId, edgeType: "association", label: "", isDirectional: false },
     ],
+  };
+}
+
+export function withFreshIds(graph: EditableMapGraph): EditableMapGraph {
+  const nodeIds = new Map(graph.nodes.map((node) => [node.id, crypto.randomUUID()]));
+
+  return {
+    ...graph,
+    nodes: graph.nodes.map((node) => ({ ...node, id: nodeIds.get(node.id) as string })),
+    edges: graph.edges.map((edge) => ({
+      ...edge,
+      id: crypto.randomUUID(),
+      sourceNodeId: nodeIds.get(edge.sourceNodeId) ?? edge.sourceNodeId,
+      targetNodeId: nodeIds.get(edge.targetNodeId) ?? edge.targetNodeId,
+    })),
   };
 }
 
@@ -83,7 +102,10 @@ export function createSiblingNode(
 
   return {
     ...graph,
-    nodes: [...graph.nodes, blankNode(nodeId, { x: selected.position.x, y: selected.position.y + 120 })],
+    nodes: [
+      ...graph.nodes,
+      blankNode(nodeId, placeNewNode(graph.nodes, { x: selected.position.x, y: selected.position.y + 120 })),
+    ],
     edges: [
       ...graph.edges,
       {
@@ -96,4 +118,24 @@ export function createSiblingNode(
       },
     ],
   };
+}
+
+export function updateNode(graph: EditableMapGraph, nodeId: string, patch: Partial<Omit<EditableMapNode, "id">>): EditableMapGraph {
+  return { ...graph, nodes: graph.nodes.map((node) => (node.id === nodeId ? { ...node, ...patch } : node)) };
+}
+
+export function deleteNode(graph: EditableMapGraph, nodeId: string): EditableMapGraph {
+  return {
+    ...graph,
+    nodes: graph.nodes.filter((node) => node.id !== nodeId),
+    edges: graph.edges.filter((edge) => edge.sourceNodeId !== nodeId && edge.targetNodeId !== nodeId),
+  };
+}
+
+export function updateEdge(graph: EditableMapGraph, edgeId: string, patch: Partial<Omit<EditableMapEdge, "id">>): EditableMapGraph {
+  return { ...graph, edges: graph.edges.map((edge) => (edge.id === edgeId ? { ...edge, ...patch } : edge)) };
+}
+
+export function deleteEdge(graph: EditableMapGraph, edgeId: string): EditableMapGraph {
+  return { ...graph, edges: graph.edges.filter((edge) => edge.id !== edgeId) };
 }

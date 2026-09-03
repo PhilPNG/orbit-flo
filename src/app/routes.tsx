@@ -18,7 +18,8 @@ import {
   loadDashboardPage,
   loadFeaturesPage,
   loadInboxPage,
-  loadMapsPage,
+  loadMapsEditorRoute,
+  loadMapsLibraryRoute,
   loadMilestonePage,
   loadNotesPage,
   loadOpenSourcePage,
@@ -34,7 +35,8 @@ const DailyMissionControlPage = lazy(loadDailyMissionControlPage);
 const DashboardPage = lazy(loadDashboardPage);
 const FeaturesPage = lazy(loadFeaturesPage);
 const InboxPage = lazy(loadInboxPage);
-const MapsPage = lazy(loadMapsPage);
+const MapsLibraryRoute = lazy(loadMapsLibraryRoute);
+const MapsEditorRoute = lazy(loadMapsEditorRoute);
 const MilestonePage = lazy(loadMilestonePage);
 const NotesPage = lazy(loadNotesPage);
 const OpenSourcePage = lazy(loadOpenSourcePage);
@@ -119,6 +121,7 @@ export function AppRoutes() {
         <Route element={<ResolveWorkspace />} path="/projects/:projectId" />
         <Route element={<ResolveWorkspace />} path="/calendar" />
         <Route element={<ResolveWorkspace />} path="/maps" />
+        <Route element={<ResolveWorkspace />} path="/maps/:mapId" />
         <Route element={<ResolveWorkspace />} path="/inbox" />
         <Route element={<ResolveWorkspace />} path="/notes" />
         <Route element={<ResolveWorkspace />} path="/settings" />
@@ -130,7 +133,8 @@ export function AppRoutes() {
           <Route element={<ProjectsPage />} path="projects" />
           <Route element={<ProjectWorkspacePage />} path="projects/:projectId" />
           <Route element={<CalendarPage />} path="calendar" />
-          <Route element={<MapsPage />} path="maps" />
+          <Route element={<MapsLibraryRoute />} path="maps" />
+          <Route element={<MapsEditorRoute />} path="maps/:mapId" />
           <Route element={<MilestonePage />} path="milestones/:milestoneId" />
           <Route element={<InboxPage />} path="inbox" />
           <Route element={<NotesPage />} path="notes" />

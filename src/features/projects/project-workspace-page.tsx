@@ -66,7 +66,13 @@ type WorkspaceTab = (typeof tabs)[number];
 
 const loadLaunchChecklistPanel = () =>
   import("./launch-checklist-panel").then((module) => ({ default: module.LaunchChecklistPanel }));
-const loadMapsPage = () => import("../maps/maps-page").then((module) => ({ default: module.MapsPage }));
+// Hover/focus prefetch (below) and the lazy() Suspense trigger can both call
+// this in the same tick; memoizing avoids issuing the dynamic import twice.
+let projectMapsTabModule: ReturnType<typeof importProjectMapsTab> | null = null;
+function importProjectMapsTab() {
+  return import("../maps/project-maps-tab").then((module) => ({ default: module.ProjectMapsTab }));
+}
+const loadProjectMapsTab = () => (projectMapsTabModule ??= importProjectMapsTab());
 const loadMeetingNotesPanel = () =>
   import("../meetings/meeting-notes-panel").then((module) => ({ default: module.MeetingNotesPanel }));
 const loadMilestoneManager = () => import("./milestone-manager").then((module) => ({ default: module.MilestoneManager }));
@@ -76,7 +82,7 @@ const loadReviewsPanel = () => import("../reviews/reviews-panel").then((module) 
 const loadTaskListView = () => import("../work-items/task-list-view").then((module) => ({ default: module.TaskListView }));
 
 const LaunchChecklistPanel = lazy(loadLaunchChecklistPanel);
-const MapsPage = lazy(loadMapsPage);
+const ProjectMapsTab = lazy(loadProjectMapsTab);
 const MeetingNotesPanel = lazy(loadMeetingNotesPanel);
 const MilestoneManager = lazy(loadMilestoneManager);
 const NotesPage = lazy(loadNotesPage);
@@ -126,13 +132,13 @@ export function ProjectWorkspacePage() {
   const { isLoading: isAuthLoading, user } = useAuth();
   const queryClient = useQueryClient();
   const workspaceId = useWorkspaceId();
-  const [activeTab, setActiveTab] = useState<WorkspaceTab>("Board");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>(() => (searchParams.has("map") ? "Maps" : "Board"));
   const [isMineOnly, setIsMineOnly] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [selectedWorkItemId, setSelectedWorkItemId] = useState<string | null>(null);
   const [panels, setPanels] = useState<WorkspacePanels>(() => loadWorkspacePanels(projectId ?? ""));
   const [isIdCopied, setIsIdCopied] = useState(false);
-  const [searchParams, setSearchParams] = useSearchParams();
 
   async function copyProjectId() {
     if (!projectId) return;
@@ -697,7 +703,7 @@ export function ProjectWorkspacePage() {
     }
 
     if (tab === "Maps") {
-      void loadMapsPage();
+      void loadProjectMapsTab();
       return;
     }
 
@@ -1113,7 +1119,7 @@ export function ProjectWorkspacePage() {
           </div>
         ) : activeTab === "Maps" ? (
           <div aria-label="Maps" role="tabpanel">
-            <MapsPage projectId={projectId} />
+            {projectId ? <ProjectMapsTab projectId={projectId} /> : null}
           </div>
         ) : activeTab === "Notes" ? (
           <div aria-label="Notes" role="tabpanel">

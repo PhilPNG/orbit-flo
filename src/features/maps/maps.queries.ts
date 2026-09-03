@@ -1,9 +1,10 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { Database, Json, MindMapView } from "../../lib/supabase/database.types";
+import type { Database, Json, MindMapNodeType, MindMapView } from "../../lib/supabase/database.types";
 import type { ConvertedObjectType, EditableMapEdge, EditableMapGraph, EditableMapNode } from "./map-types";
+import { withFreshIds } from "./map-graph-ops";
 
 type Client = SupabaseClient<Database>;
-type MindMap = Database["public"]["Tables"]["mind_maps"]["Row"];
+export type MindMap = Database["public"]["Tables"]["mind_maps"]["Row"];
 type MindMapNode = Database["public"]["Tables"]["mind_map_nodes"]["Row"];
 type MindMapEdge = Database["public"]["Tables"]["mind_map_edges"]["Row"];
 type ReplaceMindMapGraphResult = {
@@ -17,8 +18,15 @@ type ConvertMindMapNodeResult = {
   alreadyConverted: boolean;
 };
 
+export type MindMapPreview = {
+  nodes: Array<{ id: string; position: { x: number; y: number }; nodeType: MindMapNodeType }>;
+  edges: Array<{ id: string; sourceNodeId: string; targetNodeId: string }>;
+};
+
 export const mindMapKeys = {
   list: (workspaceId: string, projectId?: string | null) => ["mind-maps", workspaceId, projectId ?? "global"] as const,
+  previews: (workspaceId: string, projectId?: string | null) =>
+    ["mind-map-previews", workspaceId, projectId ?? "global"] as const,
   graph: (workspaceId: string, mapId: string) => ["mind-map-graph", workspaceId, mapId] as const,
 };
 
@@ -45,6 +53,44 @@ export async function listMindMaps(client: Client, input: { workspaceId: string;
   const { data, error } = await query;
   if (error) throw error;
   return data as MindMap[];
+}
+
+export async function listMindMapPreviews(
+  client: Client,
+  input: { workspaceId: string; mapIds: string[] },
+): Promise<Record<string, MindMapPreview>> {
+  const previews: Record<string, MindMapPreview> = {};
+  if (input.mapIds.length === 0) return previews;
+  for (const mapId of input.mapIds) previews[mapId] = { nodes: [], edges: [] };
+
+  const [{ data: nodes, error: nodesError }, { data: edges, error: edgesError }] = await Promise.all([
+    client
+      .from("mind_map_nodes")
+      .select("id, map_id, node_type, position_x, position_y")
+      .eq("workspace_id", input.workspaceId)
+      .in("map_id", input.mapIds),
+    client
+      .from("mind_map_edges")
+      .select("id, map_id, source_node_id, target_node_id")
+      .eq("workspace_id", input.workspaceId)
+      .in("map_id", input.mapIds),
+  ]);
+
+  if (nodesError) throw nodesError;
+  if (edgesError) throw edgesError;
+
+  for (const node of nodes ?? []) {
+    previews[node.map_id]?.nodes.push({
+      id: node.id,
+      position: { x: Number(node.position_x), y: Number(node.position_y) },
+      nodeType: node.node_type,
+    });
+  }
+  for (const edge of edges ?? []) {
+    previews[edge.map_id]?.edges.push({ id: edge.id, sourceNodeId: edge.source_node_id, targetNodeId: edge.target_node_id });
+  }
+
+  return previews;
 }
 
 export async function createMindMap(client: Client, input: CreateMindMapInput) {
@@ -90,13 +136,25 @@ export async function getMindMapGraph(client: Client, input: { workspaceId: stri
   return toEditableGraph({ map: map as MindMap, nodes: nodes as MindMapNode[], edges: edges as MindMapEdge[] });
 }
 
-export async function updateMindMap(
-  client: Client,
-  input: { id: string; workspaceId: string; title: string; description: string; defaultView: MindMapView },
-) {
+export type UpdateMindMapInput = {
+  id: string;
+  workspaceId: string;
+  title?: string;
+  description?: string;
+  defaultView?: MindMapView;
+  archivedAt?: string | null;
+};
+
+export async function updateMindMap(client: Client, input: UpdateMindMapInput) {
+  const patch: Database["public"]["Tables"]["mind_maps"]["Update"] = {};
+  if (input.title !== undefined) patch.title = input.title;
+  if (input.description !== undefined) patch.description = input.description;
+  if (input.defaultView !== undefined) patch.default_view = input.defaultView;
+  if (input.archivedAt !== undefined) patch.archived_at = input.archivedAt;
+
   const { data, error } = await client
     .from("mind_maps")
-    .update({ title: input.title, description: input.description, default_view: input.defaultView })
+    .update(patch)
     .eq("id", input.id)
     .eq("workspace_id", input.workspaceId)
     .select("*")
@@ -104,6 +162,33 @@ export async function updateMindMap(
 
   if (error) throw error;
   return data as MindMap;
+}
+
+export function archiveMindMap(client: Client, input: { id: string; workspaceId: string }) {
+  return updateMindMap(client, { ...input, archivedAt: new Date().toISOString() });
+}
+
+export async function duplicateMindMap(
+  client: Client,
+  input: { workspaceId: string; projectId?: string | null; userId: string; sourceMapId: string; title: string },
+) {
+  const source = await getMindMapGraph(client, { workspaceId: input.workspaceId, mapId: input.sourceMapId });
+  const graph = withFreshIds({ ...source, title: input.title });
+  const map = await createMindMap(client, {
+    workspaceId: input.workspaceId,
+    projectId: input.projectId ?? null,
+    userId: input.userId,
+    title: input.title,
+    description: source.description,
+    defaultView: "mind_map",
+  });
+  try {
+    await replaceMindMapGraph(client, { workspaceId: input.workspaceId, mapId: map.id, graph });
+  } catch (cause) {
+    await archiveMindMap(client, { id: map.id, workspaceId: input.workspaceId }).catch(() => undefined);
+    throw cause;
+  }
+  return map;
 }
 
 export async function replaceMindMapGraph(
@@ -144,7 +229,9 @@ export async function replaceMindMapGraph(
     p_workspace_id: input.workspaceId,
     p_title: input.graph.title,
     p_description: input.graph.description,
-    p_default_view: input.graph.defaultView,
+    // The editor only ever renders the mind-map view; a stored legacy value must not
+    // survive a save and send the map back to a view the UI no longer offers.
+    p_default_view: "mind_map",
     p_nodes: nodes as unknown as Json,
     p_edges: edges as unknown as Json,
   });

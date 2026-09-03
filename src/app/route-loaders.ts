@@ -22,8 +22,11 @@ export const loadAgentPage = () =>
 export const loadOpenSourcePage = () =>
   import("../features/marketing/open-source-page").then((module) => ({ default: module.OpenSourcePage }));
 
-export const loadMapsPage = () =>
-  import("../features/maps/maps-page").then((module) => ({ default: module.MapsPage }));
+export const loadMapsLibraryRoute = () =>
+  import("../features/maps/maps-routes").then((module) => ({ default: module.MapsLibraryRoute }));
+
+export const loadMapsEditorRoute = () =>
+  import("../features/maps/maps-routes").then((module) => ({ default: module.MapsEditorRoute }));
 
 export const loadMilestonePage = () =>
   import("../features/projects/milestone-page").then((module) => ({ default: module.MilestonePage }));
@@ -47,7 +50,7 @@ export const routePrefetchers: Record<string, () => Promise<unknown>> = {
   "/": loadDailyMissionControlPage,
   "/dashboard": loadDashboardPage,
   "/projects": loadProjectsPage,
-  "/maps": loadMapsPage,
+  "/maps": loadMapsLibraryRoute,
   "/calendar": loadCalendarPage,
   "/inbox": loadInboxPage,
   "/notes": loadNotesPage,

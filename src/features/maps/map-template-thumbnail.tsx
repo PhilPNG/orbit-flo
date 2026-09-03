@@ -6,8 +6,10 @@ const accentHex = { cyan: "#67e8f9", blue: "#60a5fa", violet: "#a78bfa" } as con
 type ThumbnailNode = { id: string; position: { x: number; y: number }; nodeType: MindMapNodeType };
 type ThumbnailEdge = { id: string; sourceNodeId: string; targetNodeId: string };
 
-const WIDTH = 96;
-const HEIGHT = 52;
+const sizes = {
+  sm: { width: 96, height: 52, className: "h-[3.25rem] w-24 shrink-0" },
+  md: { width: 160, height: 90, className: "aspect-[16/9] h-auto w-full" },
+} as const;
 const PAD = 8;
 
 function ThumbnailNodeShape({ node, x, y }: { node: ThumbnailNode; x: number; y: number }) {
@@ -82,7 +84,16 @@ function ThumbnailNodeShape({ node, x, y }: { node: ThumbnailNode; x: number; y:
   return <circle cx={x} cy={y} data-thumbnail-node data-thumbnail-shape={shape} fill={color} r="3" />;
 }
 
-export function TemplateThumbnail({ edges, nodes }: { edges: ThumbnailEdge[]; nodes: ThumbnailNode[] }) {
+export function TemplateThumbnail({
+  edges,
+  nodes,
+  size = "sm",
+}: {
+  edges: ThumbnailEdge[];
+  nodes: ThumbnailNode[];
+  size?: keyof typeof sizes;
+}) {
+  const { width: WIDTH, height: HEIGHT, className } = sizes[size];
   const xs = nodes.map((node) => node.position.x);
   const ys = nodes.map((node) => node.position.y);
   const minX = Math.min(...xs);
@@ -103,7 +114,7 @@ export function TemplateThumbnail({ edges, nodes }: { edges: ThumbnailEdge[]; no
   return (
     <svg
       aria-hidden="true"
-      className="h-[3.25rem] w-24 shrink-0 rounded-md border border-slate-400/10 bg-slate-950/60"
+      className={`${className} rounded-md border border-slate-400/10 bg-slate-950/60`}
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       xmlns="http://www.w3.org/2000/svg"
     >

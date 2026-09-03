@@ -1,6 +1,5 @@
 import type { MindMapEdgeType, MindMapNodeStatus, MindMapNodeType, MindMapView } from "../../lib/supabase/database.types";
 
-export const mapViews = ["mind_map", "flowchart", "timeline", "decision_tree"] as const satisfies MindMapView[];
 export const mapNodeTypes = ["idea", "task_candidate", "note", "milestone", "decision", "option", "risk", "reference"] as const satisfies MindMapNodeType[];
 export const mapNodeStatuses = ["open", "selected", "rejected", "converted", "archived"] as const satisfies MindMapNodeStatus[];
 export const mapEdgeTypes = ["association", "dependency", "sequence", "choice", "outcome"] as const satisfies MindMapEdgeType[];
@@ -47,12 +46,38 @@ export type EditableMapGraph = {
   edges: EditableMapEdge[];
 };
 
-export function mapViewLabel(view: MindMapView) {
-  const labels: Record<MindMapView, string> = {
-    mind_map: "Mind Map",
-    flowchart: "Flowchart",
-    timeline: "Timeline",
-    decision_tree: "Decision Tree",
+export function mapNodeTypeLabel(type: MindMapNodeType) {
+  const labels: Record<MindMapNodeType, string> = {
+    idea: "Idea",
+    task_candidate: "Task candidate",
+    note: "Note",
+    milestone: "Milestone",
+    decision: "Decision",
+    option: "Option",
+    risk: "Risk",
+    reference: "Reference",
   };
-  return labels[view];
+  return labels[type];
+}
+
+export function mapNodeStatusLabel(status: MindMapNodeStatus) {
+  const labels: Record<MindMapNodeStatus, string> = {
+    open: "Open",
+    selected: "Selected",
+    rejected: "Rejected",
+    converted: "Converted",
+    archived: "Archived",
+  };
+  return labels[status];
+}
+
+export function mapEdgeTypeLabel(type: MindMapEdgeType) {
+  const labels: Record<MindMapEdgeType, string> = {
+    association: "Association",
+    dependency: "Dependency",
+    sequence: "Sequence",
+    choice: "Choice",
+    outcome: "Outcome",
+  };
+  return labels[type];
 }

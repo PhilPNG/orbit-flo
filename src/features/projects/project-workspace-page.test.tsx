@@ -170,11 +170,11 @@ vi.mock("../meetings/meeting-notes.queries", async (importOriginal) => {
   };
 });
 
-vi.mock("../maps/maps-page", () => ({
-  MapsPage: ({ projectId }: { projectId?: string | null }) => (
+vi.mock("../maps/project-maps-tab", () => ({
+  ProjectMapsTab: ({ projectId }: { projectId: string }) => (
     <>
-      <h1>Visual planning workspace</h1>
-      <p>Maps project ID: {projectId ?? "global"}</p>
+      <h1>Maps</h1>
+      <p>Maps project ID: {projectId}</p>
     </>
   ),
 }));
@@ -526,8 +526,24 @@ describe("ProjectWorkspacePage", () => {
 
     await user.click(screen.getByRole("tab", { name: "Maps" }));
 
-    expect(await screen.findByRole("heading", { name: "Visual planning workspace" }, { timeout: 8000 })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Maps" }, { timeout: 8000 })).toBeTruthy();
   }, 10000);
+
+  it("opens the Maps tab when the URL carries ?map=", async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={["/projects/project-1?map=map-1"]}>
+          <Routes>
+            <Route element={<ProjectWorkspacePage />} path="/projects/:projectId" />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByRole("tab", { name: "Maps" })).toHaveAttribute("aria-selected", "true");
+    expect(await screen.findByRole("heading", { name: "Maps" })).toBeTruthy();
+  });
 
   it("converts a meeting action item from the Meetings tab", async () => {
     const user = userEvent.setup();

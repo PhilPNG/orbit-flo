@@ -4,6 +4,7 @@ import {
   Background,
   BackgroundVariant,
   Controls,
+  MarkerType,
   MiniMap,
   ReactFlow,
   ReactFlowProvider,
@@ -17,32 +18,50 @@ import {
 import "@xyflow/react/dist/style.css";
 import { clsx } from "clsx";
 import {
+  forwardRef,
   memo,
   useCallback,
+  useImperativeHandle,
   useMemo,
-  useState,
+  useRef,
   type KeyboardEvent as ReactKeyboardEvent,
   type MouseEvent as ReactMouseEvent,
 } from "react";
-import type { MindMapView } from "../../lib/supabase/database.types";
-import { createConnectedNode, createNodeAt, createSiblingNode, nodeAccentColor, nodeShape } from "./map-graph-ops";
-import { applyViewLayout } from "./map-layouts";
+import {
+  createConnectedNode,
+  createNodeAt,
+  createSiblingNode,
+  deleteEdge,
+  deleteNode,
+  nodeAccentColor,
+  nodeShape,
+} from "./map-graph-ops";
 import { StarNode, type StarNodeData } from "./map-star-node";
 import { StarlightEdge } from "./map-starlight-edge";
 import type { EditableMapEdge, EditableMapGraph, EditableMapNode } from "./map-types";
+import type { MapSelection, SetGraphOptions } from "./use-map-editor";
 
-type MapCanvasProps = {
+export type MapCanvasHandle = {
+  fitView: () => void;
+  viewportCenter: () => { x: number; y: number };
+};
+
+export type MapCanvasProps = {
   graph: EditableMapGraph;
-  selectedNodeId: string | null;
-  view: MindMapView;
-  onChange: (graph: EditableMapGraph) => void;
-  onSelectNode: (nodeId: string | null) => void;
+  selection: MapSelection;
+  renamingNodeId: string | null;
+  className?: string;
+  onChange: (graph: EditableMapGraph, options?: SetGraphOptions) => void;
+  onSelect: (selection: MapSelection) => void;
+  onRenamingChange: (nodeId: string | null) => void;
 };
 
 const nodeTypes = { star: StarNode };
 const edgeTypes = { starlight: StarlightEdge };
 const fitViewOptions = { padding: 0.32, minZoom: 0.55, maxZoom: 1.15 };
 const proOptions = { hideAttribution: true };
+const arrowMarker = { type: MarkerType.ArrowClosed, color: "#67e8f9", width: 18, height: 18 };
+const editableTags = new Set(["INPUT", "TEXTAREA", "SELECT"]);
 
 function toFlowNode(
   node: EditableMapNode,
@@ -65,14 +84,11 @@ function toFlowNode(
       onRenameCancel,
     },
     selected: node.id === selectedNodeId,
-    className: clsx(
-      "orbit-map-node",
-      node.id === selectedNodeId && "orbit-map-node-selected",
-    ),
+    className: clsx("orbit-map-node", node.id === selectedNodeId && "orbit-map-node-selected"),
   };
 }
 
-function toFlowEdge(edge: EditableMapGraph["edges"][number]): Edge {
+function toFlowEdge(edge: EditableMapEdge, selectedEdgeId: string | null): Edge {
   return {
     id: edge.id,
     source: edge.sourceNodeId,
@@ -80,14 +96,18 @@ function toFlowEdge(edge: EditableMapGraph["edges"][number]): Edge {
     label: edge.label || undefined,
     animated: false,
     type: "starlight",
-    className: edge.edgeType === "sequence" ? "orbit-map-edge-sequence" : "orbit-map-edge",
+    selected: edge.id === selectedEdgeId,
+    markerEnd: edge.isDirectional ? arrowMarker : undefined,
+    className: clsx(
+      edge.edgeType === "sequence" ? "orbit-map-edge-sequence" : "orbit-map-edge",
+      edge.id === selectedEdgeId && "orbit-map-edge-selected",
+    ),
   };
 }
 
 function createEdgeId(source: string, target: string, existingIds: Set<string>, preferredId?: string | null) {
   const baseId = preferredId || `${source}-${target}`;
   if (!existingIds.has(baseId)) return baseId;
-
   let index = 2;
   let nextId = `${baseId}-${index}`;
   while (existingIds.has(nextId)) {
@@ -99,11 +119,7 @@ function createEdgeId(source: string, target: string, existingIds: Set<string>, 
 
 function createRandomEdgeId(existingIds: Set<string>) {
   let edgeId = crypto.randomUUID();
-
-  while (existingIds.has(edgeId)) {
-    edgeId = crypto.randomUUID();
-  }
-
+  while (existingIds.has(edgeId)) edgeId = crypto.randomUUID();
   return edgeId;
 }
 
@@ -113,11 +129,9 @@ function toGraphEdges(flowEdges: Edge[], graphEdges: EditableMapEdge[]) {
 
   return flowEdges.reduce<EditableMapEdge[]>((nextEdges, flowEdge) => {
     if (!flowEdge.source || !flowEdge.target) return nextEdges;
-
     const existingEdge = graphEdgesById.get(flowEdge.id);
     const id = createEdgeId(flowEdge.source, flowEdge.target, usedIds, flowEdge.id);
     usedIds.add(id);
-
     nextEdges.push({
       id,
       sourceNodeId: flowEdge.source,
@@ -126,138 +140,176 @@ function toGraphEdges(flowEdges: Edge[], graphEdges: EditableMapEdge[]) {
       label: existingEdge?.label ?? "",
       isDirectional: existingEdge?.isDirectional ?? false,
     });
-
     return nextEdges;
   }, []);
 }
 
-function MapCanvasInner({ graph, selectedNodeId, view, onChange, onSelectNode }: MapCanvasProps) {
-  const [renamingNodeId, setRenamingNodeId] = useState<string | null>(null);
-  const { screenToFlowPosition } = useReactFlow();
+const MapCanvasInner = forwardRef<MapCanvasHandle, MapCanvasProps>(function MapCanvasInner(
+  { graph, selection, renamingNodeId, className, onChange, onSelect, onRenamingChange },
+  ref,
+) {
+  const { screenToFlowPosition, fitView } = useReactFlow();
+  const wrapperRef = useRef<HTMLDivElement>(null);
+  const selectedNodeId = selection?.kind === "node" ? selection.id : null;
+  const selectedEdgeId = selection?.kind === "edge" ? selection.id : null;
 
-  const handleRenameCommit = useCallback((nodeId: string, title: string) => {
-    setRenamingNodeId(null);
-    onChange({
-      ...graph,
-      nodes: graph.nodes.map((node) => (node.id === nodeId ? { ...node, title } : node)),
-    });
-  }, [graph, onChange]);
-
-  const handleRenameCancel = useCallback(() => setRenamingNodeId(null), []);
-
-  const canvasNodes = useMemo(
-    () => (view === "mind_map" ? graph.nodes : applyViewLayout(view, graph.nodes)),
-    [graph.nodes, view],
+  useImperativeHandle(
+    ref,
+    () => ({
+      fitView: () => {
+        void fitView(fitViewOptions);
+      },
+      viewportCenter: () => {
+        const rect = wrapperRef.current?.getBoundingClientRect();
+        if (!rect) return { x: 0, y: 0 };
+        return screenToFlowPosition({ x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 });
+      },
+    }),
+    [fitView, screenToFlowPosition],
   );
+
+  const handleRenameCommit = useCallback(
+    (nodeId: string, title: string) => {
+      onRenamingChange(null);
+      onChange({ ...graph, nodes: graph.nodes.map((node) => (node.id === nodeId ? { ...node, title } : node)) }, {
+        coalesceKey: `node:${nodeId}:title`,
+      });
+    },
+    [graph, onChange, onRenamingChange],
+  );
+  const handleRenameCancel = useCallback(() => onRenamingChange(null), [onRenamingChange]);
+
   const nodes = useMemo(
-    () =>
-      canvasNodes.map((node) =>
-        toFlowNode(node, selectedNodeId, renamingNodeId, handleRenameCommit, handleRenameCancel),
-      ),
-    [canvasNodes, selectedNodeId, renamingNodeId, handleRenameCommit, handleRenameCancel],
+    () => graph.nodes.map((node) => toFlowNode(node, selectedNodeId, renamingNodeId, handleRenameCommit, handleRenameCancel)),
+    [graph.nodes, selectedNodeId, renamingNodeId, handleRenameCommit, handleRenameCancel],
   );
-  const edges = useMemo(() => graph.edges.map(toFlowEdge), [graph.edges]);
+  const edges = useMemo(() => graph.edges.map((edge) => toFlowEdge(edge, selectedEdgeId)), [graph.edges, selectedEdgeId]);
 
-  const handleCanvasDoubleClick = useCallback((event: ReactMouseEvent<HTMLDivElement>) => {
-    if ((event.target as HTMLElement).closest(".react-flow__node")) return;
+  const handleCanvasDoubleClick = useCallback(
+    (event: ReactMouseEvent<HTMLDivElement>) => {
+      if ((event.target as HTMLElement).closest(".orbit-map-node, .react-flow__minimap, .react-flow__controls, .react-flow__edge")) return;
+      const id = crypto.randomUUID();
+      const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
+      onChange(createNodeAt(graph, position, id));
+      onSelect({ kind: "node", id });
+      onRenamingChange(id);
+    },
+    [graph, onChange, onRenamingChange, onSelect, screenToFlowPosition],
+  );
 
-    const id = crypto.randomUUID();
-    const position = screenToFlowPosition({ x: event.clientX, y: event.clientY });
-    onChange(createNodeAt(graph, position, id));
-    onSelectNode(id);
-    setRenamingNodeId(id);
-  }, [graph, onChange, onSelectNode, screenToFlowPosition]);
+  const handleNodeDoubleClick = useCallback((_: unknown, node: Node) => onRenamingChange(node.id), [onRenamingChange]);
 
-  const handleNodeDoubleClick = useCallback((_: unknown, node: Node) => {
-    setRenamingNodeId(node.id);
-  }, []);
+  const handleCanvasKeyDown = useCallback(
+    (event: ReactKeyboardEvent<HTMLDivElement>) => {
+      const target = event.target as HTMLElement;
+      if (editableTags.has(target.tagName) || target.isContentEditable) return;
 
-  const handleCanvasKeyDown = useCallback((event: ReactKeyboardEvent<HTMLDivElement>) => {
-    if (!selectedNodeId) return;
-    const target = event.target as HTMLElement;
-    if (target.tagName === "INPUT" || target.tagName === "TEXTAREA") return;
-    if (event.key !== "Tab" && event.key !== "Enter") return;
-
-    event.preventDefault();
-    const nodeId = crypto.randomUUID();
-    const edgeId = crypto.randomUUID();
-    const nextGraph =
-      event.key === "Tab"
-        ? createConnectedNode(graph, selectedNodeId, nodeId, edgeId)
-        : createSiblingNode(graph, selectedNodeId, nodeId, edgeId);
-
-    if (nextGraph === graph) return;
-    onChange(nextGraph);
-    onSelectNode(nodeId);
-    setRenamingNodeId(nodeId);
-  }, [graph, onChange, onSelectNode, selectedNodeId]);
-
-  const handleNodesChange = useCallback((changes: NodeChange[]) => {
-    const movedPositions = new Map<string, { x: number; y: number }>();
-    const movedNodeIds = new Set<string>();
-    const removedNodeIds = new Set<string>();
-
-    changes.forEach((change) => {
-      if (view === "mind_map" && change.type === "position" && change.position) {
-        movedNodeIds.add(change.id);
-        movedPositions.set(change.id, change.position);
+      if (event.key === "Escape") {
+        onSelect(null);
+        onRenamingChange(null);
+        return;
       }
-      if (change.type === "remove") {
-        removedNodeIds.add(change.id);
+
+      if ((event.key === "Delete" || event.key === "Backspace") && selection) {
+        event.preventDefault();
+        onChange(selection.kind === "node" ? deleteNode(graph, selection.id) : deleteEdge(graph, selection.id));
+        onSelect(null);
+        return;
       }
-    });
 
-    if (movedNodeIds.size === 0 && removedNodeIds.size === 0) return;
+      if (!selectedNodeId) return;
 
-    onChange({
-      ...graph,
-      nodes: graph.nodes
-        .filter((node) => !removedNodeIds.has(node.id))
-        .map((node) => {
-          const position = movedPositions.get(node.id);
-          return position && movedNodeIds.has(node.id) ? { ...node, position } : node;
-      }),
-      edges: graph.edges.filter((edge) => !removedNodeIds.has(edge.sourceNodeId) && !removedNodeIds.has(edge.targetNodeId)),
-    });
-  }, [graph, onChange, view]);
+      if (event.key === "F2") {
+        event.preventDefault();
+        onRenamingChange(selectedNodeId);
+        return;
+      }
 
-  const handleEdgesChange = useCallback((changes: EdgeChange[]) => {
-    const nextFlowEdges = applyEdgeChanges(changes, edges);
+      if (event.key !== "Tab" && event.key !== "Enter") return;
+      event.preventDefault();
+      const nodeId = crypto.randomUUID();
+      const edgeId = crypto.randomUUID();
+      const nextGraph =
+        event.key === "Tab"
+          ? createConnectedNode(graph, selectedNodeId, nodeId, edgeId)
+          : createSiblingNode(graph, selectedNodeId, nodeId, edgeId);
+      if (nextGraph === graph) return;
+      onChange(nextGraph);
+      onSelect({ kind: "node", id: nodeId });
+      onRenamingChange(nodeId);
+    },
+    [graph, onChange, onRenamingChange, onSelect, selectedNodeId, selection],
+  );
 
-    onChange({
-      ...graph,
-      edges: toGraphEdges(nextFlowEdges, graph.edges),
-    });
-  }, [edges, graph, onChange]);
+  const handleNodesChange = useCallback(
+    (changes: NodeChange[]) => {
+      const movedPositions = new Map<string, { x: number; y: number }>();
+      const removedNodeIds = new Set<string>();
+      let dragging = false;
 
-  const handleConnect = useCallback((connection: Connection) => {
-    if (!connection.source || !connection.target) return;
-    if (connection.source === connection.target) return;
+      changes.forEach((change) => {
+        if (change.type === "position" && change.position) {
+          movedPositions.set(change.id, change.position);
+          if (change.dragging) dragging = true;
+        }
+        if (change.type === "remove") removedNodeIds.add(change.id);
+      });
 
-    const existingIds = new Set(graph.edges.map((edge) => edge.id));
-    const edgeId = createRandomEdgeId(existingIds);
-    const nextFlowEdges = addEdge({ ...connection, id: edgeId }, edges);
+      if (movedPositions.size === 0 && removedNodeIds.size === 0) return;
 
-    onChange({
-      ...graph,
-      edges: toGraphEdges(nextFlowEdges, graph.edges),
-    });
-  }, [edges, graph, onChange]);
+      onChange(
+        {
+          ...graph,
+          nodes: graph.nodes
+            .filter((node) => !removedNodeIds.has(node.id))
+            .map((node) => {
+              const position = movedPositions.get(node.id);
+              return position ? { ...node, position } : node;
+            }),
+          edges: graph.edges.filter((edge) => !removedNodeIds.has(edge.sourceNodeId) && !removedNodeIds.has(edge.targetNodeId)),
+        },
+        { undoable: !dragging },
+      );
+    },
+    [graph, onChange],
+  );
 
-  const handleNodeClick = useCallback((_: unknown, node: Node) => onSelectNode(node.id), [onSelectNode]);
-  const handlePaneClick = useCallback(() => onSelectNode(null), [onSelectNode]);
+  const handleEdgesChange = useCallback(
+    (changes: EdgeChange[]) => {
+      const relevant = changes.filter((change) => change.type === "remove" || change.type === "replace");
+      if (relevant.length === 0) return;
+      onChange({ ...graph, edges: toGraphEdges(applyEdgeChanges(changes, edges), graph.edges) });
+    },
+    [edges, graph, onChange],
+  );
+
+  const handleConnect = useCallback(
+    (connection: Connection) => {
+      if (!connection.source || !connection.target || connection.source === connection.target) return;
+      const edgeId = createRandomEdgeId(new Set(graph.edges.map((edge) => edge.id)));
+      onChange({ ...graph, edges: toGraphEdges(addEdge({ ...connection, id: edgeId }, edges), graph.edges) });
+    },
+    [edges, graph, onChange],
+  );
+
+  const handleNodeClick = useCallback((_: unknown, node: Node) => onSelect({ kind: "node", id: node.id }), [onSelect]);
+  const handleEdgeClick = useCallback((_: unknown, edge: Edge) => onSelect({ kind: "edge", id: edge.id }), [onSelect]);
+  const handlePaneClick = useCallback(() => onSelect(null), [onSelect]);
 
   return (
     <div
       aria-label="Visual planning canvas"
-      className="orbit-constellation-canvas h-[max(32rem,calc(100vh-15rem))] overflow-hidden rounded-lg border border-white/10"
+      className={clsx("orbit-constellation-canvas overflow-hidden rounded-lg border border-white/10", className ?? "h-[max(28rem,calc(100vh-9.5rem))]")}
+      data-testid="map-canvas"
       onDoubleClick={handleCanvasDoubleClick}
       onKeyDown={handleCanvasKeyDown}
+      ref={wrapperRef}
       role="application"
       tabIndex={0}
     >
       <ReactFlow
         className="orbit-constellation-flow"
+        deleteKeyCode={null}
         edgeTypes={edgeTypes}
         edges={edges}
         fitView
@@ -265,6 +317,7 @@ function MapCanvasInner({ graph, selectedNodeId, view, onChange, onSelectNode }:
         nodes={nodes}
         nodeTypes={nodeTypes}
         onConnect={handleConnect}
+        onEdgeClick={handleEdgeClick}
         onEdgesChange={handleEdgesChange}
         onNodeClick={handleNodeClick}
         onNodeDoubleClick={handleNodeDoubleClick}
@@ -279,12 +332,14 @@ function MapCanvasInner({ graph, selectedNodeId, view, onChange, onSelectNode }:
       </ReactFlow>
     </div>
   );
-}
-
-export const MapCanvas = memo(function MapCanvas(props: MapCanvasProps) {
-  return (
-    <ReactFlowProvider>
-      <MapCanvasInner {...props} />
-    </ReactFlowProvider>
-  );
 });
+
+export const MapCanvas = memo(
+  forwardRef<MapCanvasHandle, MapCanvasProps>(function MapCanvas(props, ref) {
+    return (
+      <ReactFlowProvider>
+        <MapCanvasInner {...props} ref={ref} />
+      </ReactFlowProvider>
+    );
+  }),
+);

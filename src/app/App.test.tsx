@@ -55,7 +55,8 @@ vi.mock("./route-loaders", () => ({
   loadFeaturesPage: () => Promise.resolve({ default: () => <div>Features page</div> }),
   loadInboxPage: () => Promise.resolve({ default: () => <div>Inbox page</div> }),
   loadMarketingHomePage: () => Promise.resolve({ default: () => <div>Landing page</div> }),
-  loadMapsPage: () => Promise.resolve({ default: () => <h1>Visual planning workspace</h1> }),
+  loadMapsLibraryRoute: () => Promise.resolve({ default: () => <h1>Maps</h1> }),
+  loadMapsEditorRoute: () => Promise.resolve({ default: () => <h1>Map editor</h1> }),
   loadOpenSourcePage: () => Promise.resolve({ default: () => <div>Open source page</div> }),
   loadMilestonePage: () => Promise.resolve({ default: () => <div>Milestone page</div> }),
   loadNotesPage: () => Promise.resolve({ default: () => <div>Notes page</div> }),
@@ -145,7 +146,7 @@ describe("App", () => {
   it.each([
     ["Dashboard", "Dashboard page"],
     ["Missions", "Projects page"],
-    ["Maps", "Visual planning workspace"],
+    ["Maps", "Maps"],
     ["Calendar", "Calendar page"],
     ["Inbox", "Inbox page"],
     ["Brainstorm", "Notes page"],
@@ -178,7 +179,14 @@ describe("App", () => {
 
     expect(screen.getByRole("img", { name: "Orbit Flo" })).toBeTruthy();
     expect(screen.getAllByRole("main")).toHaveLength(1);
-    expect(await screen.findByRole("heading", { name: "Visual planning workspace" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Maps" })).toBeTruthy();
+  });
+
+  it("renders the map editor route inside the app shell", async () => {
+    await renderApp("/w/workspace-1/maps/map-1");
+
+    expect(screen.getAllByRole("main")).toHaveLength(1);
+    expect(await screen.findByRole("heading", { name: "Map editor" })).toBeTruthy();
   });
 
   it("collapses and expands the navigation rail with persistence", async () => {

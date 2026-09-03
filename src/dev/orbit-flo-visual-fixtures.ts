@@ -298,6 +298,41 @@ export const visualMindMap = createMapFromTemplate("feature-plan", {
   projectId: visualProjectId,
 });
 
+export const visualMapId = "8a1f7c1e-6d2b-4c0e-9f3a-2b5d6e7f8a90";
+
+export const visualMapRow: Tables["mind_maps"]["Row"] = {
+  id: visualMapId,
+  workspace_id: visualWorkspaceId,
+  project_id: null,
+  title: "Feature plan",
+  description: "",
+  default_view: "mind_map",
+  created_by: visualUserId,
+  created_at: "2026-07-01T12:00:00.000Z",
+  updated_at: timestamp,
+  archived_at: null,
+};
+
+export const visualMapRows: Tables["mind_maps"]["Row"][] = [
+  visualMapRow,
+  { ...visualMapRow, id: "b2c3d4e5-f6a7-4b8c-9d0e-1f2a3b4c5d6e", title: "Launch flow", updated_at: "2026-07-11T09:00:00.000Z" },
+  { ...visualMapRow, id: "c3d4e5f6-a7b8-4c9d-0e1f-2a3b4c5d6e7f", title: "Q3 decision", updated_at: "2026-07-09T18:30:00.000Z" },
+];
+
+export const visualMapPreviews = Object.fromEntries(
+  [
+    [visualMapRows[0].id, createMapFromTemplate("feature-plan", { projectId: null })],
+    [visualMapRows[1].id, createMapFromTemplate("launch-flow", { projectId: null })],
+    [visualMapRows[2].id, createMapFromTemplate("decision-tree", { projectId: null })],
+  ].map(([id, graph]) => [
+    id,
+    {
+      nodes: (graph as typeof visualMindMap).nodes.map((node) => ({ id: node.id, position: node.position, nodeType: node.nodeType })),
+      edges: (graph as typeof visualMindMap).edges.map((edge) => ({ id: edge.id, sourceNodeId: edge.sourceNodeId, targetNodeId: edge.targetNodeId })),
+    },
+  ]),
+);
+
 export const visualTodaySuggestions: VisualWorkItem[] = [
   workItem("suggestion-1", {
     column_id: "col-ready",
