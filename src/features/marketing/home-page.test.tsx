@@ -95,4 +95,24 @@ describe("HomePage", () => {
     expect(screen.getByRole("heading", { name: "Mission control" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Mission boards" })).toBeVisible();
   });
+
+  it("tells visitors the workspace is built for a crew, with only shipped claims", () => {
+    renderHome();
+
+    expect(screen.getByRole("heading", { name: "Bring the crew into orbit." })).toBeVisible();
+    for (const pill of [
+      "Invite by link",
+      "Owner · Admin · Member",
+      "Assign tasks",
+      "Mentions and assignment signals",
+      "Private flight plans",
+    ]) {
+      expect(screen.getByText(pill)).toBeVisible();
+    }
+    expect(screen.getByText(/daily flight plan and inbox stay yours/)).toBeVisible();
+    expect(screen.getByRole("link", { name: /See how workspaces work/ })).toHaveAttribute(
+      "href",
+      "/features#shared-workspaces",
+    );
+  });
 });

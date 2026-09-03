@@ -8,6 +8,7 @@
  * empty seed data would be a lie about what a new workspace looks like.
  */
 import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { MarketingLayout } from "./marketing-layout";
 
 type ImageSection = {
@@ -17,6 +18,7 @@ type ImageSection = {
 };
 
 type TextSection = {
+  id?: string;
   title: string;
   body: string;
 };
@@ -57,7 +59,7 @@ const TEXT_SECTIONS: TextSection[] = [
   },
   {
     title: "Mind maps",
-    body: "Sketch a graph of ideas and convert any node straight into a task or a project, without leaving the canvas.",
+    body: "Sketch a graph of ideas, arrange it with one click, and convert any node straight into a task, a note or a milestone without leaving the canvas.",
   },
   {
     title: "Calendar",
@@ -67,12 +69,26 @@ const TEXT_SECTIONS: TextSection[] = [
     title: "Weekly reviews",
     body: "Close the week with a quick per-project health check - good, watch, or at risk - logged so the trend shows up over time, not just the current snapshot.",
   },
+  {
+    id: "shared-workspaces",
+    title: "Shared workspaces",
+    body: "Invite people with a link and give them a role — owner, admin or member. Members can be assigned tasks, can leave, and can be removed; a workspace always keeps an owner. Your flight plan and inbox are private to you; boards, milestones and project notes belong to the workspace.",
+  },
 ];
 
 export function FeaturesPage() {
+  const { hash } = useLocation();
+
   useEffect(() => {
     document.title = "Features — Orbit Flo";
   }, []);
+
+  useEffect(() => {
+    if (!hash) return;
+
+    const target = document.getElementById(hash.slice(1));
+    target?.scrollIntoView({ block: "start" });
+  }, [hash]);
 
   return (
     <MarketingLayout>
@@ -105,7 +121,7 @@ export function FeaturesPage() {
 
         <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {TEXT_SECTIONS.map((section) => (
-            <article className="orbit-panel rounded-2xl p-6" key={section.title}>
+            <article className="orbit-panel rounded-2xl p-6" id={section.id} key={section.title}>
               <h3 className="text-xl font-bold text-white">{section.title}</h3>
               <p className="mt-2 text-sm text-slate-300">{section.body}</p>
             </article>

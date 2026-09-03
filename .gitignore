@@ -7,3 +7,6 @@ playwright-report/
 debug.log
 *.local
 supabase/.temp/
+
+# Vercel CLI project link (local only)
+.vercel

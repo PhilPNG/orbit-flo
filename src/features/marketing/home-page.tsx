@@ -3,8 +3,8 @@
  *
  * Trimmed relative to the old single-page landing: the full agent-tool
  * breakdown now lives on /agent, the full feature tour on /features. This
- * page's job is the hero, a taste of the agent story, three teasers, and an
- * honest close - not the whole pitch.
+ * page's job is the hero, a taste of the agent story, the crew section,
+ * three teasers, and an honest close - not the whole pitch.
  *
  * Copy rule, enforced by tests: everything here is true today. No invented
  * numbers, no testimonials, no pricing tiers.
@@ -25,6 +25,14 @@ const AGENT_TOOLS = [
   "list_projects",
   "move_task",
   "search_workspace",
+];
+
+const CREW_POINTS = [
+  "Invite by link",
+  "Owner · Admin · Member",
+  "Assign tasks",
+  "Mentions and assignment signals",
+  "Private flight plans",
 ];
 
 const TEASERS = [
@@ -117,6 +125,38 @@ export function HomePage() {
           to="/agent"
         >
           See what each tool does →
+        </Link>
+      </section>
+
+      {/* Collaboration - every claim here is shipped and covered by the two-account e2e suite */}
+      <section className="orbit-panel mt-10 rounded-2xl p-8 sm:p-12">
+        <p className="text-xs font-bold uppercase tracking-[0.3em] text-violet-300/80">
+          Shared workspaces
+        </p>
+        <h2 className="mt-3 text-3xl font-black text-white sm:text-4xl">
+          Bring the crew into orbit.
+        </h2>
+        <p className="mt-4 max-w-3xl text-slate-300">
+          Invite people to a workspace with a link and give them a role — owner, admin or
+          member. Assign tasks to members, and get a signal when someone mentions or assigns
+          you. Your daily flight plan and inbox stay yours; the mission boards, milestones and
+          project notes are shared.
+        </p>
+        <ul className="mt-6 flex flex-wrap gap-2">
+          {CREW_POINTS.map((point) => (
+            <li
+              className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-xs font-semibold text-cyan-100"
+              key={point}
+            >
+              {point}
+            </li>
+          ))}
+        </ul>
+        <Link
+          className="mt-6 inline-block text-sm font-semibold text-cyan-300 transition hover:text-cyan-200"
+          to="/features#shared-workspaces"
+        >
+          See how workspaces work →
         </Link>
       </section>
 
